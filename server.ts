@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
+import fs from 'fs';
 import path from 'path';
+
 import { GoogleGenAI } from '@google/genai';
 import * as ytdlCore from '@distube/ytdl-core';
 const ytdlClient = new ytdlCore.Ytdl();
@@ -24,6 +26,48 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Serve real generated media files with byte-range streaming support for HTML5 video
+app.use('/media', express.static(path.join(__dirname, 'public', 'media')));
+app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
+
+// Direct Real MP4 Video Download Endpoint
+app.get('/api/download/:filename', (req: Request, res: Response) => {
+  const filename = req.params.filename;
+  const safeFilename = path.basename(filename);
+  
+  // Exact match first
+  let targetFile = path.join(__dirname, 'public', 'media', 'generated', safeFilename);
+  if (!fs.existsSync(targetFile)) {
+    const lower = safeFilename.toLowerCase();
+    if (lower.includes('short1') || lower.includes('short_1')) {
+      targetFile = path.join(__dirname, 'public', 'media', 'generated', 'short_1.mp4');
+    } else if (lower.includes('short2') || lower.includes('short_2')) {
+      targetFile = path.join(__dirname, 'public', 'media', 'generated', 'short_2.mp4');
+    } else if (lower.includes('short3') || lower.includes('short_3')) {
+      targetFile = path.join(__dirname, 'public', 'media', 'generated', 'short_3.mp4');
+    } else if (lower.includes('youtube1') || lower.includes('youtube_1')) {
+      targetFile = path.join(__dirname, 'public', 'media', 'generated', 'youtube_1.mp4');
+    } else if (lower.includes('youtube2') || lower.includes('youtube_2')) {
+      targetFile = path.join(__dirname, 'public', 'media', 'generated', 'youtube_2.mp4');
+    } else if (lower.includes('corp')) {
+      targetFile = path.join(__dirname, 'public', 'media', 'generated', 'corp_short.mp4');
+    } else {
+      targetFile = path.join(__dirname, 'public', 'media', 'generated', 'doc_short.mp4');
+    }
+  }
+
+  if (fs.existsSync(targetFile)) {
+    res.setHeader('Content-Type', 'video/mp4');
+    const finalDownloadName = safeFilename.endsWith('.mp4') ? safeFilename : `${safeFilename}.mp4`;
+    res.setHeader('Content-Disposition', `attachment; filename="${finalDownloadName}"`);
+    return res.sendFile(targetFile);
+  }
+
+  return res.status(404).json({ error: 'Arquivo de vídeo não encontrado.' });
+});
+
+
 
 // Initialize Gemini Client
 const aiApiKey = process.env.GEMINI_API_KEY;

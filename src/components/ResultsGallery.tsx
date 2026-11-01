@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Download,
   Play,
@@ -14,8 +14,9 @@ import {
   FolderArchive,
   Eye,
   Sliders,
+  HardDrive,
 } from 'lucide-react';
-import { GeneratedOutput, ModelId, MODELS } from '../utils/videoEngine';
+import { GeneratedOutput, ModelId, MODELS, formatBytes } from '../utils/videoEngine';
 import confetti from 'canvas-confetti';
 
 interface ResultsGalleryProps {
@@ -78,34 +79,39 @@ export const ResultsGallery: React.FC<ResultsGalleryProps> = ({
         key={output.id}
         className="bg-[#1C2541]/90 rounded-2xl border border-slate-800 hover:border-[#D4AF37]/60 transition-all duration-300 shadow-xl overflow-hidden flex flex-col justify-between group"
       >
-        {/* Card Top Preview / Aspect Ratio Frame */}
+        {/* Card Top Preview / Real Video Frame */}
         <div
           onClick={() => onOpenPlayer(output)}
           className={`relative bg-[#090D16] cursor-pointer overflow-hidden flex items-center justify-center ${
-            isVertical ? 'h-64' : 'h-48'
+            isVertical ? 'h-72' : 'h-52'
           }`}
         >
-          {/* Simulated thumbnail background */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B132B] via-transparent to-transparent z-10" />
-          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#D4AF37_1px,transparent_1px)] [background-size:16px_16px]" />
+          {/* Real Video Element to show real frame & image */}
+          <video
+            src={output.videoUrl}
+            muted
+            playsInline
+            preload="metadata"
+            className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity"
+          />
 
-          {/* Central Mock Video Frame */}
-          <div className="z-10 text-center px-4">
-            <div className="w-12 h-12 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/50 text-[#D4AF37] mx-auto flex items-center justify-center mb-2 group-hover:scale-110 group-hover:bg-[#D4AF37] group-hover:text-[#090D16] transition-all shadow-lg">
+          {/* Gradient Overlay for badges legibility */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B132B] via-transparent to-black/30 pointer-events-none" />
+
+          {/* Central Play Badge */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-12 h-12 rounded-full bg-[#D4AF37]/25 border border-[#D4AF37] text-white flex items-center justify-center shadow-2xl backdrop-blur-sm group-hover:scale-110 group-hover:bg-[#D4AF37] group-hover:text-[#090D16] transition-all">
               <Play className="w-5 h-5 fill-current ml-0.5" />
             </div>
-            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
-              Clique para Assistir
-            </span>
-            <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">
-              Legendas Animadas Ativas
-            </span>
           </div>
 
           {/* Top Badges */}
           <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5">
             <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-[#090D16]/90 text-[#D4AF37] border border-[#D4AF37]/40 shadow">
               {output.aspectRatio}
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#1C2541]/90 text-slate-300 border border-slate-700 font-mono shadow">
+              {formatBytes(output.fileSizeBytes)}
             </span>
             {output.timelapseApplied && (
               <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
@@ -121,9 +127,13 @@ export const ResultsGallery: React.FC<ResultsGalleryProps> = ({
             </span>
           </div>
 
-          {/* Duration Badge Bottom Right */}
-          <div className="absolute bottom-3 right-3 z-20 bg-black/80 text-white font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-slate-700">
-            {output.formattedDuration}
+          {/* Duration Badge Bottom Right (Shows seconds to verify >= 50s constraint) */}
+          <div className="absolute bottom-3 right-3 z-20 bg-black/90 text-white font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1">
+            <Clock className="w-3 h-3 text-[#D4AF37]" />
+            <span>{output.formattedDuration}</span>
+            {output.type === 'short' && (
+              <span className="text-[10px] text-[#E0A96D]">(&ge;50s)</span>
+            )}
           </div>
         </div>
 
@@ -158,13 +168,13 @@ export const ResultsGallery: React.FC<ResultsGalleryProps> = ({
             <button
               type="button"
               onClick={() => onOpenPlayer(output)}
-              className="p-2.5 rounded-xl bg-[#0B132B] hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-colors flex items-center justify-center shrink-0"
-              title="Abrir Player e Prévia"
+              className="p-2.5 rounded-xl bg-[#0B132B] hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+              title="Abrir Player e Prévia com Áudio"
             >
               <Eye className="w-4 h-4" />
             </button>
 
-            {/* Main Individual Download Button */}
+            {/* Main Individual Real MP4 Download Button */}
             <button
               type="button"
               onClick={(e) => handleDownloadClick(e, output)}
@@ -177,12 +187,12 @@ export const ResultsGallery: React.FC<ResultsGalleryProps> = ({
               {isDownloaded ? (
                 <>
                   <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  <span>Baixado!</span>
+                  <span>MP4 Baixado!</span>
                 </>
               ) : (
                 <>
                   <Download className="w-4 h-4 stroke-[2.5]" />
-                  <span>{output.downloadLabel}</span>
+                  <span>{output.downloadLabel} (.MP4)</span>
                 </>
               )}
             </button>
@@ -204,10 +214,10 @@ export const ResultsGallery: React.FC<ResultsGalleryProps> = ({
             </span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Vídeos Prontos para Download e Publicação
+            Vídeos Prontos para Download e Edição no CapCut
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Pipeline autônomo gerou {outputs.length} {outputs.length === 1 ? 'arquivo final' : 'arquivos finais'} com enquadramento, cortes dinâmicos e legendas sincronizadas.
+            Arquivos MP4 reais gerados com áudio, cortes e resolução nativa. Duração mínima de 50s garantida nos shorts.
           </p>
         </div>
 
@@ -238,7 +248,7 @@ export const ResultsGallery: React.FC<ResultsGalleryProps> = ({
             className="text-xs px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#E0A96D] text-[#090D16] font-black uppercase tracking-wider shadow-lg hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
           >
             <FolderArchive className="w-4 h-4" />
-            <span>Baixar Todos ({outputs.length})</span>
+            <span>Baixar Todos os MP4s ({outputs.length})</span>
           </button>
         </div>
       </div>
@@ -248,12 +258,17 @@ export const ResultsGallery: React.FC<ResultsGalleryProps> = ({
         <div className="space-y-10">
           {/* Sub-section: 3 Shorts */}
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm font-black uppercase tracking-wider text-[#D4AF37] px-3 py-1 rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/30">
-                3 Cortes Curtos (Formato Shorts / 9:16)
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black uppercase tracking-wider text-[#D4AF37] px-3 py-1 rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/30">
+                  3 Cortes Curtos (Formato Shorts / 9:16)
+                </span>
+                <span className="text-xs text-emerald-400 font-semibold">
+                  Mínimo de 50 segundos garantido em cada corte
+                </span>
+              </div>
               <span className="text-xs text-slate-400">
-                Até 3 minutos, foco em viralização, jump cuts e zooms de ênfase.
+                Jump cuts, punch zooms e narração contínua prontos para exportação.
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -268,7 +283,7 @@ export const ResultsGallery: React.FC<ResultsGalleryProps> = ({
                 2 Vídeos Longos (Formato YouTube / 16:9)
               </span>
               <span className="text-xs text-slate-400">
-                Até 15 minutos cada, cortes limpos, correção de ritmo e legendas profissionais.
+                Widescreen HD (1280x720) com áudio masterizado e legendas profissionais.
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

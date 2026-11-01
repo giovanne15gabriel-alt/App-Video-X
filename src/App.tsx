@@ -20,15 +20,18 @@ interface ReferenceVideoState {
   name: string;
   source: 'preset' | 'upload';
   presetKey?: string;
+  videoUrl?: string;
 }
+
 
 export default function App() {
   const [selectedModelId, setSelectedModelId] = useState<ModelId>('doc_shorts');
   const [media, setMedia] = useState<VideoMetadata | null>(null);
   const [referenceVideo, setReferenceVideo] = useState<ReferenceVideoState | null>({
-    name: 'Estilo Vox Explainer (Preset 4K)',
+    name: 'Estilo Missão 14 (Vídeo Exemplo 1)',
     source: 'preset',
-    presetKey: 'vox-minimal',
+    presetKey: 'missao14',
+    videoUrl: '/assets/aistudio/WhatsApp_Video_2026-10-28_at_19.07.29_f3db054b.mp4',
   });
 
   // Credits & Session
@@ -51,11 +54,11 @@ export default function App() {
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [ffmpegCommand, setFfmpegCommand] = useState('');
   const [aiInsights, setAiInsights] = useState({
-    hookDetected: 'Pico de engajamento identificado nos primeiros segundos com alto valor informacional.',
-    narrativePacing: 'Cortes dinâmicos a cada 2.8s sincronizados com o tom de voz.',
-    viralScore: 97,
-    soundtrackSuggestion: 'Minimalist Synth Beat (84 BPM) - Volume -18dB',
-    cleanCutsCount: 19,
+    hookDetected: 'Pico de engajamento documental identificado nos primeiros segundos com alto valor informacional.',
+    narrativePacing: 'Cortes dinâmicos e cartelas informativas com narração masculina brasileira padrão (mínimo de 50s garantido).',
+    viralScore: 98,
+    soundtrackSuggestion: 'Cinematic Minimalist Beat (84 BPM) - Volume -18dB',
+    cleanCutsCount: 22,
   });
 
   // Fetch initial credits from backend
@@ -81,9 +84,10 @@ export default function App() {
     setGeneratedOutputs(null);
     if (id === 'doc_shorts' && !referenceVideo) {
       setReferenceVideo({
-        name: 'Estilo Vox Explainer (Preset 4K)',
+        name: 'Estilo Missão 14 (Vídeo Exemplo 1)',
         source: 'preset',
-        presetKey: 'vox-minimal',
+        presetKey: 'missao14',
+        videoUrl: '/assets/aistudio/WhatsApp_Video_2026-10-28_at_19.07.29_f3db054b.mp4',
       });
     }
   };
@@ -104,7 +108,9 @@ export default function App() {
     setGeneratedOutputs(null);
     setTerminalLogs([
       `[00:00] Ingestão iniciada para "${media.title}"...`,
-      `[00:01] Validando integridade de stream de áudio e resolução...`,
+      media.source === 'script'
+        ? `[00:01] Processando roteiro temático e iniciando levantamento de fatos/leis...`
+        : `[00:01] Validando integridade de stream de áudio e resolução...`,
     ]);
 
     // Stage 1: Upload & media check
@@ -112,8 +118,10 @@ export default function App() {
       setProgressPercent(24);
       setTerminalLogs((prev) => [
         ...prev,
-        `[00:02] Mídia validada: ${media.durationSeconds}s, formato ${media.format}.`,
-        `[00:03] Conectando ao Gemini 1.5 Pro Engine para transcrição e análise...`,
+        media.source === 'script'
+          ? `[00:02] Roteiro validado: tema "${media.scriptTopic || 'Documentário'}" estruturado com sucesso.`
+          : `[00:02] Mídia validada: ${media.durationSeconds}s, formato ${media.format}.`,
+        `[00:03] Conectando ao Gemini 1.5 Pro Engine para análise narrativa...`,
       ]);
       setCurrentStageIndex(1);
     }, 1200);
@@ -122,13 +130,18 @@ export default function App() {
     setTimeout(() => {
       setProgressPercent(48);
       const isLong = selectedModelId === 'long_processor';
+      const isScript = media.source === 'script';
       setTerminalLogs((prev) => [
         ...prev,
-        `[00:05] Mapeando transcrição de áudio e curvas de retenção...`,
-        isLong
-          ? `[00:06] Identificados 3 ganchos virais de alta retenção (9:16) + 2 blocos profundos (16:9)...`
-          : `[00:06] Padrão de ritmo cruzado com o vídeo de referência com sucesso...`,
-        `[00:07] Extraindo timestamps de corte e parâmetros dinâmicos...`,
+        isScript
+          ? `[00:04] Pesquisando referências legislativas, dados numéricos e fatos contextuais...`
+          : `[00:04] Mapeando transcrição de áudio e picos de retenção...`,
+        isScript
+          ? `[00:05] Gerando narração brasileira (voz masculina agradável e confiante padrão)...`
+          : isLong
+          ? `[00:05] Identificados 3 ganchos virais (9:16, >=50s) + 2 vídeos longos de YouTube (16:9)...`
+          : `[00:05] Padrão documental estruturado com base no vídeo de referência...`,
+        `[00:06] Extraindo timestamps de corte e parâmetros dinâmicos (mínimo de 50s garantido)...`,
       ]);
       setCurrentStageIndex(2);
     }, 2800);
@@ -138,10 +151,10 @@ export default function App() {
       setProgressPercent(72);
       setTerminalLogs((prev) => [
         ...prev,
-        `[00:08] Executando FFmpeg: redimensionamento, jump cuts e punch zooms...`,
+        `[00:08] Executando FFmpeg: cortes limpos, zooms e enquadramento nativo...`,
         selectedModelId === 'corp_tech'
-          ? `[00:09] Aplicando timelapse 4x nas etapas repetitivas de modelagem BIM...`
-          : `[00:09] Normalizando áudio via Loudnorm (-16 LUFS)...`,
+          ? `[00:09] Aplicando timelapse inteligente nas etapas repetitivas de software...`
+          : `[00:09] Normalizando áudio estéreo com perfil de masterização broadcast...`,
       ]);
       setCurrentStageIndex(3);
     }, 4500);
@@ -151,11 +164,12 @@ export default function App() {
       setProgressPercent(90);
       setTerminalLogs((prev) => [
         ...prev,
-        `[00:10] Gerando legendas animadas palavra por palavra sincronizadas...`,
-        `[00:11] Renderizando arquivos finais com aceleração de hardware...`,
+        `[00:10] Gerando legendas animadas sincronizadas com a voz...`,
+        `[00:11] Renderizando arquivos MP4 finais para exportação imediata no CapCut...`,
       ]);
       setCurrentStageIndex(4);
     }, 6200);
+
 
     // Stage 5: Finish & API request call
     try {
@@ -213,29 +227,17 @@ export default function App() {
     }
   };
 
-  // Direct download handler for output items
+  // Direct download handler for real MP4 output items
   const handleDownloadOutput = (output: GeneratedOutput) => {
-    // Generate a downloadable video or text data file
     const element = document.createElement('a');
-    const dummyVideoBlob = new Blob(
-      [
-        `# EDITOR X — ARQUIVO GERADO AUTONOMAMENTE\n` +
-          `# Título: ${output.title}\n` +
-          `# Formato: ${output.aspectRatio}\n` +
-          `# Duração: ${output.formattedDuration}\n` +
-          `# Retenção: ${output.retentionScore}%\n` +
-          `# Gancho: ${output.hookHeadline}\n\n` +
-          `# LEGENDAS DINÂMICAS SINCRONIZADAS:\n` +
-          output.subtitles.map((s) => `[${s.start}s -> ${s.end}s] ${s.word}`).join('\n'),
-      ],
-      { type: 'text/plain;charset=utf-8' }
-    );
-    element.href = URL.createObjectURL(dummyVideoBlob);
-    element.download = output.downloadFileName.replace('.mp4', '-manifest.txt');
+    // Direct endpoint that serves real MP4 video with proper headers
+    element.href = `/api/download/${output.downloadFileName}`;
+    element.download = output.downloadFileName;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
   };
+
 
   const handleReset = () => {
     setIsProcessing(false);

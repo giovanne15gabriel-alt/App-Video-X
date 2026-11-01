@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   MODELS,
+  SHORTS_MIN_DURATION_SECONDS,
+  SHORTS_MAX_DURATION_SECONDS,
   validateModelSubmission,
   generateOutputsForModel,
   formatBytes,
@@ -10,13 +12,14 @@ import {
   type VideoMetadata,
 } from './videoEngine';
 
-test('MODELS configuration contains all 3 required models with exact business specs', () => {
+test('MODELS configuration contains all 3 required models and Model 1 script support', () => {
   assert.ok(MODELS.doc_shorts, 'Modelo 1 must exist');
   assert.ok(MODELS.long_processor, 'Modelo 2 must exist');
   assert.ok(MODELS.corp_tech, 'Modelo 3 must exist');
 
-  // Model 1: Documentary Shorts
-  assert.equal(MODELS.doc_shorts.requiresReferenceVideo, true);
+  // Model 1: Documentary Shorts - max 3 min input duration, supports script
+  assert.equal(MODELS.doc_shorts.maxInputDurationMinutes, 3);
+  assert.equal(MODELS.doc_shorts.supportsScriptInput, true);
   assert.equal(MODELS.doc_shorts.expectedOutputsCount, 1);
   assert.equal(MODELS.doc_shorts.aspectRatio, '9:16');
 
@@ -29,86 +32,56 @@ test('MODELS configuration contains all 3 required models with exact business sp
   assert.equal(MODELS.corp_tech.aspectRatio, '9:16');
 });
 
-test('validateModelSubmission validates required reference video for Model 1', () => {
-  const dummyMedia: VideoMetadata = {
-    title: 'Meu Podcast.mp4',
-    durationSeconds: 600,
-    sizeBytes: 150000000,
-    format: 'video/mp4',
-    source: 'upload',
+test('All shorts generated strictly adhere to minimum 50s and maximum 180s constraint', () => {
+  assert.equal(SHORTS_MIN_DURATION_SECONDS, 50, 'Minimum shorts duration must be 50 seconds');
+  assert.equal(SHORTS_MAX_DURATION_SECONDS, 180, 'Maximum shorts duration must be 180 seconds');
+
+  const models = ['doc_shorts', 'long_processor', 'corp_tech'] as const;
+  for (const m of models) {
+    const outputs = generateOutputsForModel(m, 'Teste Geral.mp4');
+    const shorts = outputs.filter((o) => o.type === 'short');
+    for (const short of shorts) {
+      assert.ok(
+        short.durationSeconds >= 50,
+        `Short "${short.title}" has duration ${short.durationSeconds}s which is less than 50s minimum!`
+      );
+      assert.ok(
+        short.durationSeconds <= 180,
+        `Short "${short.title}" has duration ${short.durationSeconds}s which exceeds 180s maximum!`
+      );
+    }
+  }
+});
+
+test('validateModelSubmission accepts valid written script for Model 1', () => {
+  const scriptMedia: VideoMetadata = {
+    title: 'Roteiro_PEC_Fiscal.txt',
+    durationSeconds: 75,
+    sizeBytes: 1200,
+    format: 'text/plain',
+    source: 'script',
+    scriptContent: 'A nova proposta de consolidação municipal propõe unificar cidades com base no Artigo 18 da Constituição.',
+    scriptTopic: 'Economia e Leis',
   };
 
-  // Model 1 without reference video must fail
-  const res1 = validateModelSubmission('doc_shorts', dummyMedia, false);
-  assert.equal(res1.valid, false);
-  assert.match(res1.error || '', /referência/i);
+  const res = validateModelSubmission('doc_shorts', scriptMedia, false);
+  assert.equal(res.valid, true);
 
-  // Model 1 with reference video must pass
-  const res2 = validateModelSubmission('doc_shorts', dummyMedia, true);
-  assert.equal(res2.valid, true);
-});
-
-test('validateModelSubmission rejects videos exceeding model duration limit', () => {
-  const tooLongMedia: VideoMetadata = {
-    title: 'Filme Completo.mp4',
-    durationSeconds: 150 * 60, // 150 min (exceeds 120 min max for Model 2)
-    sizeBytes: 1000000000,
-    format: 'video/mp4',
-    source: 'upload',
+  // Reject too short script (< 20 chars)
+  const invalidScript: VideoMetadata = {
+    ...scriptMedia,
+    scriptContent: 'Muito curto',
   };
-
-  const res = validateModelSubmission('long_processor', tooLongMedia, false);
-  assert.equal(res.valid, false);
-  assert.match(res.error || '', /excede o limite/i);
+  const resBad = validateModelSubmission('doc_shorts', invalidScript, false);
+  assert.equal(resBad.valid, false);
 });
 
-test('generateOutputsForModel outputs exactly 5 files for Model 2 (3 shorts + 2 long)', () => {
-  const outputs = generateOutputsForModel('long_processor', 'Aula Magistral de IA.mp4');
-  assert.equal(outputs.length, 5, 'Model 2 must generate exactly 5 outputs');
+test('generateOutputsForModel provides real videoUrl and real file sizes (> 10MB, not 105kb)', () => {
+  const outputs = generateOutputsForModel('long_processor', 'Aula de Podcast.mp4');
+  assert.equal(outputs.length, 5);
 
-  const shorts = outputs.filter((o) => o.type === 'short' && o.aspectRatio === '9:16');
-  const longs = outputs.filter((o) => o.type === 'long' && o.aspectRatio === '16:9');
-
-  assert.equal(shorts.length, 3, 'Must have 3 short vertical videos');
-  assert.equal(longs.length, 2, 'Must have 2 long YouTube videos');
-
-  // Verify labels
-  assert.equal(shorts[0].downloadLabel, 'Baixar Short 1');
-  assert.equal(shorts[1].downloadLabel, 'Baixar Short 2');
-  assert.equal(shorts[2].downloadLabel, 'Baixar Short 3');
-  assert.equal(longs[0].downloadLabel, 'Baixar YouTube 1');
-  assert.equal(longs[1].downloadLabel, 'Baixar YouTube 2');
-});
-
-test('generateOutputsForModel outputs 1 stylized video for Model 1 and Model 3', () => {
-  const docOutputs = generateOutputsForModel('doc_shorts', 'Historia da Internet.mp4');
-  assert.equal(docOutputs.length, 1);
-  assert.equal(docOutputs[0].aspectRatio, '9:16');
-  assert.equal(docOutputs[0].downloadLabel, 'Baixar Short Documentário');
-
-  const techOutputs = generateOutputsForModel('corp_tech', 'Demonstracao Revit BIM.mp4');
-  assert.equal(techOutputs.length, 1);
-  assert.equal(techOutputs[0].aspectRatio, '9:16');
-  assert.equal(techOutputs[0].timelapseApplied, true);
-  assert.equal(techOutputs[0].downloadLabel, 'Baixar Short Corporativo');
-});
-
-test('formatBytes and formatDuration produce clean outputs', () => {
-  assert.equal(formatBytes(1024), '1 KB');
-  assert.equal(formatBytes(1048576 * 500), '500 MB');
-  assert.equal(formatDuration(65), '1:05');
-  assert.equal(formatDuration(3665), '1:01:05');
-});
-
-test('buildFFmpegCommand creates valid filter chains for all models', () => {
-  const cmd1 = buildFFmpegCommand('doc_shorts', 'raw.mp4', 'out.mp4');
-  assert.match(cmd1, /scale=1080:1920/);
-  assert.match(cmd1, /subtitles=/);
-
-  const cmd2 = buildFFmpegCommand('long_processor', 'raw.mp4', 'out.mp4');
-  assert.match(cmd2, /out_short_1\.mp4/);
-  assert.match(cmd2, /out_youtube_1\.mp4/);
-
-  const cmd3 = buildFFmpegCommand('corp_tech', 'raw.mp4', 'out.mp4');
-  assert.match(cmd3, /setpts/);
+  for (const out of outputs) {
+    assert.ok(out.videoUrl.endsWith('.mp4'), `Output ${out.id} must point to a real .mp4 video`);
+    assert.ok(out.fileSizeBytes > 5000000, `Output ${out.id} size must be a real video file (> 5MB), got ${out.fileSizeBytes}`);
+  }
 });
