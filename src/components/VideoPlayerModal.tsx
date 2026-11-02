@@ -16,7 +16,7 @@ import {
   Layers,
   HardDrive,
 } from 'lucide-react';
-import { GeneratedOutput, formatDuration, formatBytes } from '../utils/videoEngine';
+import { GeneratedOutput, formatDuration, formatBytes, buildScenesForOutput, SceneData } from '../utils/videoEngine';
 import confetti from 'canvas-confetti';
 
 interface VideoPlayerModalProps {
@@ -106,10 +106,33 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
     }
   };
 
+  // Calculate active scene
+  const scenes = output.scenes && output.scenes.length > 0
+    ? output.scenes
+    : buildScenesForOutput(output.title, output.durationSeconds || 65, output.videoStyle);
+  
+  const currentRatio = duration > 0 ? currentTime / duration : currentTime / (output.durationSeconds || 65);
+  const activeSceneIndex = Math.min(
+    scenes.length - 1,
+    Math.max(0, Math.floor(currentRatio * scenes.length))
+  );
+  const activeScene = scenes[activeSceneIndex] || scenes[0];
+
+  const handleJumpToScene = (index: number) => {
+    const targetScene = scenes[index];
+    if (targetScene && videoRef.current) {
+      const targetTime = targetScene.startTime ?? (index * (duration || output.durationSeconds || 65) / scenes.length);
+      videoRef.current.currentTime = targetTime;
+      setCurrentTime(targetTime);
+    }
+  };
+
   // Find active subtitle word
   const activeWord = output.subtitles.find(
     (w) => currentTime >= w.start && currentTime <= w.end
   );
+
+  const accentColor = output.colorHex || '#D4AF37';
 
   return (
     <div
@@ -177,10 +200,39 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
               className="w-full h-full object-contain"
             />
 
+            {/* Top Scene HUD Overlay */}
+            <div className="absolute top-3 inset-x-3 pointer-events-none flex items-center justify-between z-20">
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-black/85 text-[#D4AF37] border-l-2 border-[#D4AF37] shadow">
+                {output.creatorHandle || '@EDITORX.OFICIAL'}
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-black/80 text-white border border-[#D4AF37]/40 shadow">
+                ATO 0{activeScene.sceneIndex} DE 05
+              </span>
+            </div>
+
+            {/* Active Scene Headline HUD */}
+            <div className="absolute top-11 inset-x-3 pointer-events-none z-20">
+              <div className="bg-[#090D16]/90 border border-slate-700/80 rounded-lg px-2.5 py-1.5 backdrop-blur-sm shadow flex items-center justify-between">
+                <div>
+                  <span className="text-[9px] font-bold text-[#D4AF37] uppercase tracking-wider block">
+                    {activeScene.category}
+                  </span>
+                  <span className="text-[11px] font-bold text-white block truncate max-w-[190px]">
+                    {activeScene.headline}
+                  </span>
+                </div>
+                {activeScene.keyStat && (
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-[#1C2541] text-emerald-400 border border-emerald-500/30">
+                    {activeScene.keyStat}
+                  </span>
+                )}
+              </div>
+            </div>
+
             {/* Subtitles Overlay synced to real audio playback */}
             {activeWord && (
-              <div className="absolute bottom-12 inset-x-4 pointer-events-none text-center">
-                <span className="inline-block px-3 py-1 rounded-lg bg-black/75 text-[#D4AF37] border border-[#D4AF37]/50 font-bold text-sm tracking-wide shadow-lg animate-pulse">
+              <div className="absolute bottom-12 inset-x-4 pointer-events-none text-center z-20">
+                <span className="inline-block px-3 py-1 rounded-lg bg-black/85 text-[#D4AF37] border border-[#D4AF37]/50 font-bold text-sm tracking-wide shadow-lg animate-pulse">
                   ★ {activeWord.word} ★
                 </span>
               </div>
@@ -190,7 +242,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
             <button
               type="button"
               onClick={togglePlay}
-              className={`absolute inset-0 flex items-center justify-center transition-colors group cursor-pointer ${
+              className={`absolute inset-0 flex items-center justify-center transition-colors group cursor-pointer z-10 ${
                 isPlaying ? 'bg-transparent' : 'bg-black/40'
               }`}
               aria-label={isPlaying ? 'Pausar vídeo' : 'Reproduzir vídeo'}
@@ -229,6 +281,46 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                 {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
               </button>
             </div>
+          </div>
+
+          {/* Scene Navigation Bar */}
+          <div className="w-full max-w-2xl mt-3 p-3 rounded-xl bg-[#0B132B] border border-slate-800">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-[#D4AF37]" />
+                Cenas Narrativas (5 Atos do Documentário)
+              </span>
+              <span className="text-[10px] font-semibold text-slate-500">
+                Clique para saltar
+              </span>
+            </div>
+            <div className="grid grid-cols-5 gap-1.5">
+              {scenes.map((sc: SceneData, i: number) => {
+                const isActive = activeSceneIndex === i;
+                return (
+                  <button
+                    key={sc.sceneIndex}
+                    type="button"
+                    onClick={() => handleJumpToScene(i)}
+                    className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer ${
+                      isActive
+                        ? 'border-[#D4AF37] bg-[#1C2541] text-white shadow'
+                        : 'border-slate-800 bg-[#090D16] text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-[10px] font-black block text-[#D4AF37]">
+                      ATO 0{sc.sceneIndex}
+                    </span>
+                    <span className="text-[8px] block truncate">
+                      {sc.badge.split(' ')[0]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-slate-300 mt-2 italic px-1 line-clamp-1">
+              "{activeScene.spokenText}"
+            </p>
           </div>
         </div>
 

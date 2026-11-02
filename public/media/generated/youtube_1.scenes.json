@@ -1,0 +1,75 @@
+{
+  "title": "Módulo Completo YouTube",
+  "topic": "Fundamentos e Estruturação",
+  "creator_handle": "@editorx.oficial",
+  "color_hex": "#D4AF37",
+  "aspect_ratio": "16:9",
+  "duration_seconds": 65.0,
+  "scenes": [
+    {
+      "sceneIndex": 1,
+      "category": "DOCUMENTÁRIO EXPLICATIVO • ATO 01",
+      "headline": "MÓDULO COMPLETO YOUTUBE",
+      "subline": "A VISÃO QUE POUCOS COMPREENDEM",
+      "spokenText": "Existe um princípio fundamental por trás deste tema que quase ninguém percebe no dia a dia. Vamos destrinchar agora.",
+      "keyStat": "TESE CENTRAL",
+      "statLabel": "Fundamentos Estruturais",
+      "badge": "EXPLICADOR TÉCNICO",
+      "visualType": "dossier",
+      "startTime": 0.0,
+      "endTime": 13.0
+    },
+    {
+      "sceneIndex": 2,
+      "category": "PADRÕES & CRITÉRIOS • ATO 02",
+      "headline": "ESTRUTURA METODOLÓGICA",
+      "subline": "NORMAS TÉCNICAS E EXECUÇÃO EFICIENTE",
+      "spokenText": "Quando analisamos o método correto de implementação, a velocidade e a clareza dos resultados se multiplicam de forma impressionante.",
+      "keyStat": "ALTA EFICIÊNCIA",
+      "statLabel": "Critérios Rigorosos de Qualidade",
+      "badge": "PADRÃO TÉCNICO",
+      "visualType": "law_decree",
+      "startTime": 13.0,
+      "endTime": 26.0
+    },
+    {
+      "sceneIndex": 3,
+      "category": "DADOS & RESULTADOS • ATO 03",
+      "headline": "MÉTRICAS COMPROVADAS",
+      "subline": "GANHO DE PERFORMANCE E IMPACTO",
+      "spokenText": "Os números comprovam a eficácia: tempo de produção reduzido e uma assertividade que coloca qualquer projeto em outro patamar.",
+      "keyStat": "4.8X VELOCIDADE",
+      "statLabel": "Aceleração de Entrega Validada",
+      "badge": "MÉTRICA VALIDADA",
+      "visualType": "data_chart",
+      "startTime": 26.0,
+      "endTime": 39.0
+    },
+    {
+      "sceneIndex": 4,
+      "category": "APLICAÇÃO PRÁTICA • ATO 04",
+      "headline": "CHECKLIST DE EXECUÇÃO",
+      "subline": "PASSO A PASSO ESSENCIAL",
+      "spokenText": "Para aplicar este modelo com segurança, siga os pontos essenciais testados e validados pelas maiores referências do mercado.",
+      "keyStat": "5 ETAPAS",
+      "statLabel": "Roteiro Prático de Sucesso",
+      "badge": "GUIA PRÁTICO",
+      "visualType": "evidence_board",
+      "startTime": 39.0,
+      "endTime": 52.0
+    },
+    {
+      "sceneIndex": 5,
+      "category": "CONCLUSÃO • ATO 05",
+      "headline": "DOMINE O PROCESSO",
+      "subline": "SALVE ESTE VÍDEO E SIGA O CANAL",
+      "spokenText": "Domine essas ferramentas para transformar os seus resultados. Curta este vídeo e siga o perfil para receber novos conteúdos diários.",
+      "keyStat": "PRONTO PARA APLICAR",
+      "statLabel": "Transformação Garantida",
+      "badge": "CONTEÚDO EXCLUSIVO",
+      "visualType": "verdict",
+      "startTime": 52.0,
+      "endTime": 65.0
+    }
+  ]
+}

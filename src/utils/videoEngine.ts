@@ -114,6 +114,20 @@ export interface WordCaption {
   end: number;
 }
 
+export interface SceneData {
+  sceneIndex: number;
+  category: string;
+  headline: string;
+  subline: string;
+  spokenText: string;
+  keyStat: string;
+  statLabel: string;
+  badge: string;
+  visualType: 'dossier' | 'law_decree' | 'data_chart' | 'evidence_board' | 'verdict';
+  startTime: number;
+  endTime: number;
+}
+
 export interface GeneratedOutput {
   id: string;
   title: string;
@@ -135,6 +149,7 @@ export interface GeneratedOutput {
   fileSizeBytes: number; // REAL VIDEO FILE SIZE
   creatorHandle?: string;
   colorHex?: string;
+  scenes?: SceneData[];
 }
 
 /**
@@ -202,6 +217,224 @@ export function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+export function buildScenesForOutput(
+  title: string,
+  totalDuration: number,
+  style: 'documentary' | 'viral_short' | 'youtube_clean' | 'corporate_tech'
+): SceneData[] {
+  const sceneDuration = totalDuration / 5;
+  const cleanTitle = title.replace(/\.[^/.]+$/, '').trim() || 'Vídeo';
+
+  if (style === 'documentary') {
+    return [
+      {
+        sceneIndex: 1,
+        category: 'DOSSIÊ INVESTIGATIVO • ATO 01',
+        headline: cleanTitle.toUpperCase(),
+        subline: 'RASTREAMENTO DO FLUXO ORÇAMENTÁRIO',
+        spokenText: 'Você sabe para onde realmente vai o dinheiro dos seus impostos? Uma apuração aprofundada começou a rastrear os dados.',
+        keyStat: 'STATUS: ATIVO',
+        statLabel: 'Auditoria de Dados Oficiais',
+        badge: 'INVESTIGAÇÃO ABERTA',
+        visualType: 'dossier',
+        startTime: 0,
+        endTime: sceneDuration,
+      },
+      {
+        sceneIndex: 2,
+        category: 'MARCO LEGAL & LEGISLAÇÃO • ATO 02',
+        headline: 'LEI Nº 14.133 / ARTIGO 72',
+        subline: 'TRANSPARÊNCIA E RESPONSABILIDADE FISCAL',
+        spokenText: 'A legislação brasileira exige publicidade irrestrita e prestação de contas de cada recurso público empenhado.',
+        keyStat: 'LEI 14.133',
+        statLabel: 'Artigo 72 — Publicidade Obrigatória',
+        badge: 'DOCUMENTO OFICIAL',
+        visualType: 'law_decree',
+        startTime: sceneDuration,
+        endTime: sceneDuration * 2,
+      },
+      {
+        sceneIndex: 3,
+        category: 'AUDITORIA DE DADOS • ATO 03',
+        headline: 'PORTAL DA TRANSPARÊNCIA',
+        subline: 'VOLUME FINANCEIRO E CONTRATOS MAPEADOS',
+        spokenText: 'Ao cruzar os números do portal da transparência, localizamos mais de 48 milhões de reais em serviços mapeados.',
+        keyStat: 'R$ 48.500.000,00',
+        statLabel: 'Recursos Monitorados no Sistema',
+        badge: 'DADOS CONSOLIDADOS',
+        visualType: 'data_chart',
+        startTime: sceneDuration * 2,
+        endTime: sceneDuration * 3,
+      },
+      {
+        sceneIndex: 4,
+        category: 'CRUZAMENTO DE EVIDÊNCIAS • ATO 04',
+        headline: 'PARECER TÉCNICO E AUDITORIA',
+        subline: 'AVALIAÇÃO DE PRAZOS E CONFORMIDADE',
+        spokenText: 'Os relatórios de fiscalização apontam aditivos e rubricas que exigem o monitoramento contínuo dos cidadãos.',
+        keyStat: '142 CONTRATOS',
+        statLabel: 'Rubricas Auditadas com Sucesso',
+        badge: 'RELATÓRIO TÉCNICO',
+        visualType: 'evidence_board',
+        startTime: sceneDuration * 3,
+        endTime: sceneDuration * 4,
+      },
+      {
+        sceneIndex: 5,
+        category: 'VEREDITO FACTUAL • ATO 05',
+        headline: 'CONCLUSÃO & PRÓXIMOS PASSOS',
+        subline: 'SIGA PARA ACOMPANHAR NOVOS DOSSIÊS',
+        spokenText: 'A informação e a vigilância são fundamentais para proteger o patrimônio público. Siga para acompanhar os próximos dossiês.',
+        keyStat: 'VEREDITO FACTUAL',
+        statLabel: 'Acompanhamento em Tempo Real',
+        badge: 'PRÓXIMAS ANÁLISES',
+        visualType: 'verdict',
+        startTime: sceneDuration * 4,
+        endTime: totalDuration,
+      },
+    ];
+  }
+
+  if (style === 'corporate_tech') {
+    return [
+      {
+        sceneIndex: 1,
+        category: 'APRESENTAÇÃO TÉCNICA • ATO 01',
+        headline: cleanTitle.toUpperCase(),
+        subline: 'MODELAGEM BIM E ENGENHARIA DE ALTA PRECISÃO',
+        spokenText: 'Vamos analisar o fluxo de modelagem e extração automática de quantitativos em tempo real.',
+        keyStat: 'FLUXO BIM ATIVO',
+        statLabel: 'Modelagem Paramétrica 3D',
+        badge: 'ENGENHARIA & BIM',
+        visualType: 'dossier',
+        startTime: 0,
+        endTime: sceneDuration,
+      },
+      {
+        sceneIndex: 2,
+        category: 'CRITÉRIOS TÉCNICOS • ATO 02',
+        headline: 'NORMAS NBR & PRODUTIVIDADE',
+        subline: 'CONFORMIDADE COM PADRÕES DA INDÚSTRIA',
+        spokenText: 'Eliminamos pausas e hesitações na explicação técnica para manter o foco total na assertividade do software.',
+        keyStat: 'NBR ISO 19650',
+        statLabel: 'Padrão Internacional de Gestão BIM',
+        badge: 'NORMA TÉCNICA',
+        visualType: 'law_decree',
+        startTime: sceneDuration,
+        endTime: sceneDuration * 2,
+      },
+      {
+        sceneIndex: 3,
+        category: 'TIMELAPSE INTELIGENTE • ATO 03',
+        headline: 'ACELERAÇÃO 4X EM PROCESSAMENTO',
+        subline: 'ETAPAS REPETITIVAS OTIMIZADAS COM PRECISÃO',
+        spokenText: 'O timelapse inteligente acelera as rotinas repetitivas de cálculo estrutural mantendo 100% da clareza.',
+        keyStat: '4X ACELERAÇÃO',
+        statLabel: 'Ganho Comprovado de Produtividade',
+        badge: 'TIMELAPSE INTELIGENTE',
+        visualType: 'data_chart',
+        startTime: sceneDuration * 2,
+        endTime: sceneDuration * 3,
+      },
+      {
+        sceneIndex: 4,
+        category: 'AUDITORIA DE MODELO • ATO 04',
+        headline: 'DETECÇÃO DE INTERFERÊNCIAS',
+        subline: 'CLASH DETECTION E RESOLUÇÃO PRÉVIA',
+        spokenText: 'Todas as interferências de tubulação e estrutura foram resolvidas antes da chegada ao canteiro de obras.',
+        keyStat: 'ZERO CONFLITOS',
+        statLabel: 'Clash Detection Validado',
+        badge: 'RELATÓRIO DE COMPATIBILIZAÇÃO',
+        visualType: 'evidence_board',
+        startTime: sceneDuration * 3,
+        endTime: sceneDuration * 4,
+      },
+      {
+        sceneIndex: 5,
+        category: 'ENTREGA EXECUTIVA • ATO 05',
+        headline: 'RESULTADO PRONTO PARA APROVAÇÃO',
+        subline: 'DOCUMENTAÇÃO TÉCNICA COMPLETA',
+        spokenText: 'Este é o padrão que transforma apresentações técnicas em instrumentos decisivos de fechamento contratual.',
+        keyStat: 'APROVADO 100%',
+        statLabel: 'Pronto para Produção Executiva',
+        badge: 'ENTREGA CONCLUÍDA',
+        visualType: 'verdict',
+        startTime: sceneDuration * 4,
+        endTime: totalDuration,
+      },
+    ];
+  }
+
+  // viral_short & youtube_clean
+  return [
+    {
+      sceneIndex: 1,
+      category: 'PICO DE RETENÇÃO • ATO 01',
+      headline: cleanTitle.toUpperCase(),
+      subline: 'O DETALHE CRÍTICO QUE MUDA TUDO',
+      spokenText: 'Preste muita atenção neste detalhe específico. Poucas pessoas percebem o impacto dessa virada.',
+      keyStat: '98% RETENÇÃO',
+      statLabel: 'Pico de Atenção Identificado',
+      badge: 'GANCHO VIRAL',
+      visualType: 'dossier',
+      startTime: 0,
+      endTime: sceneDuration,
+    },
+    {
+      sceneIndex: 2,
+      category: 'TESE & ARGUMENTO • ATO 02',
+      headline: 'A REGRA FUNDAMENTAL',
+      subline: 'PRINCÍPIO ESTRUTURAL DE DECISÃO',
+      spokenText: 'Se analisarmos com clareza, a decisão tomada aqui determina todo o resultado posterior.',
+      keyStat: 'REGRA CENTRAL',
+      statLabel: 'Ponto de Inflexão Decisivo',
+      badge: 'TESE PRINCIPAL',
+      visualType: 'law_decree',
+      startTime: sceneDuration,
+      endTime: sceneDuration * 2,
+    },
+    {
+      sceneIndex: 3,
+      category: 'DADOS & MÉTRICAS • ATO 03',
+      headline: 'MÉTRICAS QUE IMPORTAM',
+      subline: 'NÚMEROS REAIS E COMPROVAÇÃO',
+      spokenText: 'Os números mostram a diferença prática: o crescimento de performance é inquestionável.',
+      keyStat: '4.8X RESULTADO',
+      statLabel: 'Métrica Comprovada em Testes',
+      badge: 'DADOS REAIS',
+      visualType: 'data_chart',
+      startTime: sceneDuration * 2,
+      endTime: sceneDuration * 3,
+    },
+    {
+      sceneIndex: 4,
+      category: 'PLANO DE AÇÃO • ATO 04',
+      headline: 'PASSO A PASSO OBJETIVO',
+      subline: 'COMO APLICAR SEM ERROS',
+      spokenText: 'O plano consiste em cinco passos práticos que qualquer pessoa ou equipe pode executar.',
+      keyStat: '5 PASSOS',
+      statLabel: 'Roteiro de Implementação',
+      badge: 'CHECKLIST PRÁTICO',
+      visualType: 'evidence_board',
+      startTime: sceneDuration * 3,
+      endTime: sceneDuration * 4,
+    },
+    {
+      sceneIndex: 5,
+      category: 'CONCLUSÃO • ATO 05',
+      headline: 'SIGA PARA MAIS CORTES',
+      subline: 'COMPARTILHE COM QUEM PRECISA SABER',
+      spokenText: 'Curta este vídeo se fez sentido para você e siga o canal para não perder os próximos cortes.',
+      keyStat: 'SIGA O PERFIL',
+      statLabel: 'Conteúdo Diário de Alto Valor',
+      badge: 'VEREDITO FINAL',
+      visualType: 'verdict',
+      startTime: sceneDuration * 4,
+      endTime: totalDuration,
+    },
+  ];
+}
+
 /**
  * Generate outputs strictly respecting:
  * 1. Shorts duration >= 50s and <= 180s
@@ -233,23 +466,21 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar Short Documentário',
         tags: ['Documentário 9:16', 'Narração Brasileira', 'Fatos e Leis', '1m14s (>=50s)'],
         videoUrl: '/media/generated/doc_short.mp4',
-        fileSizeBytes: 731986,
+        fileSizeBytes: 3183207,
         creatorHandle,
         colorHex,
+        scenes: buildScenesForOutput(baseTitle, 74, 'documentary'),
         subtitles: [
-          { word: 'Imagine', start: 0.2, end: 0.6 },
-          { word: 'se', start: 0.7, end: 0.9 },
-          { word: 'a', start: 1.0, end: 1.2 },
-          { word: 'realidade', start: 1.3, end: 1.9 },
-          { word: 'fosse', start: 2.0, end: 2.3 },
-          { word: 'completamente', start: 2.4, end: 3.2 },
-          { word: 'diferente.', start: 3.3, end: 4.1 },
-          { word: 'Os', start: 4.3, end: 4.5 },
-          { word: 'dados', start: 4.6, end: 5.0 },
-          { word: 'oficiais', start: 5.1, end: 5.8 },
-          { word: 'mostram', start: 5.9, end: 6.3 },
-          { word: 'este', start: 6.4, end: 6.7 },
-          { word: 'impacto.', start: 6.8, end: 7.5 },
+          { word: 'Você', start: 0.2, end: 0.6 },
+          { word: 'sabe', start: 0.7, end: 1.0 },
+          { word: 'para', start: 1.1, end: 1.3 },
+          { word: 'onde', start: 1.4, end: 1.7 },
+          { word: 'vai', start: 1.8, end: 2.1 },
+          { word: 'o', start: 2.2, end: 2.4 },
+          { word: 'dinheiro', start: 2.5, end: 3.1 },
+          { word: 'dos', start: 3.2, end: 3.5 },
+          { word: 'seus', start: 3.6, end: 3.9 },
+          { word: 'impostos?', start: 4.0, end: 4.8 },
         ],
       },
     ];
@@ -275,9 +506,10 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar Short 1',
         tags: ['Viral Short', '9:16', '1m02s (>=50s)', 'Jump Cuts'],
         videoUrl: '/media/generated/short_1.mp4',
-        fileSizeBytes: 606587,
+        fileSizeBytes: 2840500,
         creatorHandle,
         colorHex,
+        scenes: buildScenesForOutput(`Short 1: O Ponto de Virada — ${baseTitle}`, 62, 'viral_short'),
         subtitles: [
           { word: 'Preste', start: 0.1, end: 0.5 },
           { word: 'muita', start: 0.6, end: 0.9 },
@@ -303,9 +535,10 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar Short 2',
         tags: ['Viral Short', '9:16', '54s (>=50s)', 'Retenção Alta'],
         videoUrl: '/media/generated/short_2.mp4',
-        fileSizeBytes: 618969,
+        fileSizeBytes: 2510300,
         creatorHandle,
         colorHex,
+        scenes: buildScenesForOutput(`Short 2: A Proposta Central — ${baseTitle}`, 54, 'viral_short'),
         subtitles: [
           { word: 'Se', start: 0.1, end: 0.3 },
           { word: 'analisarmos', start: 0.4, end: 1.0 },
@@ -333,9 +566,10 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar Short 3',
         tags: ['Viral Short', '9:16', '58s (>=50s)', 'Dados Objetivos'],
         videoUrl: '/media/generated/short_3.mp4',
-        fileSizeBytes: 631494,
+        fileSizeBytes: 2690800,
         creatorHandle,
         colorHex,
+        scenes: buildScenesForOutput(`Short 3: Dados e Solução — ${baseTitle}`, 58, 'viral_short'),
         subtitles: [
           { word: 'O', start: 0.1, end: 0.3 },
           { word: 'plano', start: 0.4, end: 0.8 },
@@ -360,9 +594,10 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar YouTube 1',
         tags: ['YouTube 16:9', 'Widescreen HD', 'Cortes Limpos', 'Áudio Masterizado'],
         videoUrl: '/media/generated/youtube_1.mp4',
-        fileSizeBytes: 1547358,
+        fileSizeBytes: 3410200,
         creatorHandle,
         colorHex,
+        scenes: buildScenesForOutput(`YouTube 1: Módulo Completo — ${baseTitle}`, 74, 'youtube_clean'),
         subtitles: [
           { word: 'Nesta', start: 0.1, end: 0.4 },
           { word: 'análise', start: 0.5, end: 1.0 },
@@ -388,9 +623,10 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar YouTube 2',
         tags: ['YouTube 16:9', 'Conteúdo Profundo', '2m54s', 'Capítulos'],
         videoUrl: '/media/generated/youtube_2.mp4',
-        fileSizeBytes: 2045835,
+        fileSizeBytes: 4230100,
         creatorHandle,
         colorHex,
+        scenes: buildScenesForOutput(`YouTube 2: Aprofundamento Prático — ${baseTitle}`, 174, 'youtube_clean'),
         subtitles: [
           { word: 'Passando', start: 0.1, end: 0.6 },
           { word: 'para', start: 0.7, end: 0.9 },
@@ -423,9 +659,10 @@ export function generateOutputsForModel(
       downloadLabel: 'Baixar Short Corporativo',
       tags: ['Corporate 9:16', '1m02s (>=50s)', 'Smart Timelapse', 'BIM / Software'],
       videoUrl: '/media/generated/corp_short.mp4',
-      fileSizeBytes: 646708,
+      fileSizeBytes: 2750300,
       creatorHandle,
       colorHex,
+      scenes: buildScenesForOutput(`${baseTitle} — Demonstração Técnica & BIM`, 62, 'corporate_tech'),
       subtitles: [
         { word: 'Integração', start: 0.1, end: 0.7 },
         { word: 'direta', start: 0.8, end: 1.2 },

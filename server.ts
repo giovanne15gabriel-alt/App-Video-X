@@ -156,10 +156,22 @@ app.post('/api/render-custom', async (req: Request, res: Response) => {
 
     await execFilePromise('python3', [scriptPath, JSON.stringify(config)]);
 
+    const scenesPath = targetFile.replace('.mp4', '.scenes.json');
+    let scenes = undefined;
+    if (fs.existsSync(scenesPath)) {
+      try {
+        const meta = JSON.parse(fs.readFileSync(scenesPath, 'utf-8'));
+        scenes = meta.scenes;
+      } catch {
+        // continue
+      }
+    }
+
     return res.json({
       success: true,
-      videoUrl: `/media/generated/${path.basename(filename)}`,
+      videoUrl: `/media/generated/${path.basename(filename)}?t=${Date.now()}`,
       filename: path.basename(filename),
+      scenes,
     });
   } catch (err: any) {
     console.error('Erro ao re-renderizar vídeo personalizado:', err);
@@ -193,11 +205,11 @@ app.post('/api/process', async (req: Request, res: Response) => {
       const config = {
         title: media.title,
         topic: media.scriptTopic || 'Documentário Investigativo',
-        script: media.scriptContent || `${media.title}. Análise aprofundada com base em leis e dados oficiais consolidados.`,
+        script: media.scriptContent || `${media.title}. Análise factual aprofundada com base em leis e dados oficiais consolidados.`,
         creator_handle: creatorHandle,
         color_hex: colorPalette,
         aspect_ratio: '9:16',
-        duration_seconds: 74,
+        duration_seconds: 65,
         output_path: targetPath,
       };
 
@@ -209,6 +221,28 @@ app.post('/api/process', async (req: Request, res: Response) => {
 
   // Generate outputs matching business requirements
   const outputs = generateOutputsForModel(modelId, media.title, creatorHandle, colorPalette);
+
+  // If doc_short was rendered, attach actual dynamic scenes from scenes.json
+  if (modelId === 'doc_shorts' && outputs[0]) {
+    const scenesPath = path.join(__dirname, 'public', 'media', 'generated', 'doc_short.scenes.json');
+    if (fs.existsSync(scenesPath)) {
+      try {
+        const meta = JSON.parse(fs.readFileSync(scenesPath, 'utf-8'));
+        if (meta.scenes) {
+          outputs[0].scenes = meta.scenes;
+          if (meta.duration_seconds) {
+            outputs[0].durationSeconds = Math.round(meta.duration_seconds);
+            outputs[0].formattedDuration = `${Math.floor(meta.duration_seconds / 60)}:${Math.floor(meta.duration_seconds % 60).toString().padStart(2, '0')}`;
+          }
+          if (meta.scenes[0]?.spokenText) {
+            outputs[0].summary = meta.scenes[0].spokenText;
+          }
+        }
+      } catch {
+        // continue
+      }
+    }
+  }
 
   // Generate FFmpeg command string
   const ffmpegCommand = buildFFmpegCommand(

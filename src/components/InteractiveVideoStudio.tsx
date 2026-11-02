@@ -23,6 +23,8 @@ import {
   COLOR_PALETTES,
   formatDuration,
   formatBytes,
+  buildScenesForOutput,
+  SceneData,
 } from '../utils/videoEngine';
 import confetti from 'canvas-confetti';
 
@@ -158,6 +160,27 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
     }
   };
 
+  // Calculate active scene
+  const scenes = output.scenes && output.scenes.length > 0
+    ? output.scenes
+    : buildScenesForOutput(output.title, output.durationSeconds || 65, output.videoStyle);
+  
+  const currentProgressRatio = duration > 0 ? currentTime / duration : currentTime / (output.durationSeconds || 65);
+  const activeSceneIndex = Math.min(
+    scenes.length - 1,
+    Math.max(0, Math.floor(currentProgressRatio * scenes.length))
+  );
+  const activeScene = scenes[activeSceneIndex] || scenes[0];
+
+  const handleJumpToScene = (index: number) => {
+    const targetScene = scenes[index];
+    if (targetScene && videoRef.current) {
+      const targetTime = targetScene.startTime ?? (index * (duration || output.durationSeconds || 65) / scenes.length);
+      videoRef.current.currentTime = targetTime;
+      setCurrentTime(targetTime);
+    }
+  };
+
   // Find active subtitle word
   const activeWord = output.subtitles.find(
     (w) => currentTime >= w.start && currentTime <= w.end
@@ -190,7 +213,7 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Estúdio de Prévia, Ajuste de @ e Paleta de Cores em Tempo Real
+                Estúdio de Prévia, Cenas Narrativas, Ajuste de @ e Paleta em Tempo Real
               </p>
             </div>
           </div>
@@ -218,7 +241,7 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
               }`}
               style={{ borderColor: `${studioColorHex}60` }}
             >
-              {/* Native HTML5 Video Element */}
+              {/* Native HTML5 Video Element with Real Rendered Visual Frames */}
               <video
                 ref={videoRef}
                 src={output.videoUrl}
@@ -233,24 +256,46 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
                 }`}
               />
 
-              {/* Live Overlay: Creator @ Watermark */}
-              <div className="absolute top-4 left-4 right-4 pointer-events-none flex items-center justify-between">
+              {/* Live Overlay: Creator @ Watermark & Scene Index */}
+              <div className="absolute top-3 left-3 right-3 pointer-events-none flex items-center justify-between z-20">
                 <span
-                  className="px-2.5 py-1 rounded-md text-[11px] font-black uppercase tracking-wider shadow-md bg-black/80"
+                  className="px-2.5 py-1 rounded-md text-[11px] font-black uppercase tracking-wider shadow-md bg-black/85 backdrop-blur-sm"
                   style={{ color: studioColorHex, borderLeft: `3px solid ${studioColorHex}` }}
                 >
                   {studioHandle.toUpperCase()}
                 </span>
-                <span className="text-[10px] font-semibold text-slate-400 bg-black/70 px-2 py-0.5 rounded">
-                  {isVertical ? '9:16 VERTICAL' : '16:9 WIDESCREEN'}
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded shadow bg-black/80"
+                  style={{ color: studioColorHex, border: `1px solid ${studioColorHex}50` }}
+                >
+                  ATO 0{activeScene.sceneIndex} DE 05
                 </span>
+              </div>
+
+              {/* Dynamic Active Scene HUD Callout */}
+              <div className="absolute top-12 left-3 right-3 pointer-events-none z-20">
+                <div className="bg-[#090D16]/90 border border-slate-700/80 rounded-lg px-2.5 py-1.5 backdrop-blur-sm shadow-lg flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-wider block" style={{ color: studioColorHex }}>
+                      {activeScene.category}
+                    </span>
+                    <span className="text-[11px] font-bold text-white block truncate max-w-[170px]">
+                      {activeScene.headline}
+                    </span>
+                  </div>
+                  {activeScene.keyStat && (
+                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-[#1C2541] text-emerald-400 border border-emerald-500/30">
+                      {activeScene.keyStat}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Dynamic Subtitle Highlight */}
               {activeWord && (
-                <div className="absolute bottom-16 inset-x-4 pointer-events-none text-center">
+                <div className="absolute bottom-16 inset-x-4 pointer-events-none text-center z-20">
                   <span
-                    className="inline-block px-3 py-1.5 rounded-lg bg-black/85 font-extrabold text-sm tracking-wide shadow-xl border"
+                    className="inline-block px-3 py-1.5 rounded-lg bg-black/90 font-extrabold text-sm tracking-wide shadow-xl border"
                     style={{ color: studioColorHex, borderColor: `${studioColorHex}80` }}
                   >
                     ★ {activeWord.word} ★
@@ -262,7 +307,7 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
               <button
                 type="button"
                 onClick={togglePlay}
-                className={`absolute inset-0 flex items-center justify-center transition-colors cursor-pointer ${
+                className={`absolute inset-0 flex items-center justify-center transition-colors cursor-pointer z-10 ${
                   isPlaying ? 'bg-transparent' : 'bg-black/45'
                 }`}
                 aria-label={isPlaying ? 'Pausar vídeo' : 'Reproduzir vídeo'}
@@ -287,7 +332,8 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
                 step={0.1}
                 value={currentTime}
                 onChange={handleSeek}
-                className="w-full accent-[#D4AF37] cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                className="w-full cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                style={{ accentColor: studioColorHex }}
               />
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <div className="flex items-center gap-2">
@@ -314,6 +360,68 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Interactive Scene Selector Bar */}
+            <div className="w-full max-w-xl mt-4 p-3 rounded-xl bg-[#0B132B] border border-slate-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5" style={{ color: studioColorHex }} />
+                  Cenas Narrativas Geradas (5 Atos Factuais)
+                </span>
+                <span className="text-[10px] font-semibold text-slate-500">
+                  Clique em um ato para navegar
+                </span>
+              </div>
+
+              {/* 5 Scene Navigation Pills */}
+              <div className="grid grid-cols-5 gap-1.5 mb-2.5">
+                {scenes.map((sc: SceneData, i: number) => {
+                  const isActive = activeSceneIndex === i;
+                  return (
+                    <button
+                      key={sc.sceneIndex}
+                      type="button"
+                      onClick={() => handleJumpToScene(i)}
+                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer ${
+                        isActive
+                          ? 'border-white bg-[#1C2541] shadow-lg'
+                          : 'border-slate-800 bg-[#090D16] hover:border-slate-700'
+                      }`}
+                      style={isActive ? { borderColor: studioColorHex } : {}}
+                    >
+                      <span
+                        className="text-[10px] font-black block"
+                        style={{ color: isActive ? studioColorHex : '#94A3B8' }}
+                      >
+                        ATO 0{sc.sceneIndex}
+                      </span>
+                      <span className="text-[8px] text-slate-400 block truncate">
+                        {sc.badge.split(' ')[0]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Active Scene Narration Dialogue Card */}
+              <div
+                className="p-2.5 rounded-lg bg-[#090D16] border text-left"
+                style={{ borderColor: `${studioColorHex}40` }}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: studioColorHex }}>
+                    {activeScene.category}
+                  </span>
+                  <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                    {activeScene.statLabel}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-200 font-medium leading-relaxed italic">
+                  "{activeScene.spokenText}"
+                </p>
+              </div>
+            </div>
+
           </div>
 
           {/* Right Column: Customization & Studio Parameters (5 cols) */}

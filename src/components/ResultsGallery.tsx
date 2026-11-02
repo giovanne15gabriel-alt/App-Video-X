@@ -127,6 +127,16 @@ export const ResultsGallery: React.FC<ResultsGalleryProps> = ({
             </span>
           </div>
 
+          {/* Creator Watermark Tag */}
+          <div className="absolute bottom-3 left-3 z-20 pointer-events-none">
+            <span
+              className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-black/85 border-l-2 shadow"
+              style={{ color: output.colorHex || '#D4AF37', borderLeftColor: output.colorHex || '#D4AF37' }}
+            >
+              {output.creatorHandle || '@EDITORX.OFICIAL'}
+            </span>
+          </div>
+
           {/* Duration Badge Bottom Right (Shows seconds to verify >= 50s constraint) */}
           <div className="absolute bottom-3 right-3 z-20 bg-black/90 text-white font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1">
             <Clock className="w-3 h-3 text-[#D4AF37]" />
