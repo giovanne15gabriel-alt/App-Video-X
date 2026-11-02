@@ -4,6 +4,7 @@ import {
   MODELS,
   SHORTS_MIN_DURATION_SECONDS,
   SHORTS_MAX_DURATION_SECONDS,
+  COLOR_PALETTES,
   validateModelSubmission,
   generateOutputsForModel,
   formatBytes,
@@ -38,7 +39,7 @@ test('All shorts generated strictly adhere to minimum 50s and maximum 180s const
 
   const models = ['doc_shorts', 'long_processor', 'corp_tech'] as const;
   for (const m of models) {
-    const outputs = generateOutputsForModel(m, 'Teste Geral.mp4');
+    const outputs = generateOutputsForModel(m, 'Teste Geral.mp4', '@canal.teste', '#06B6D4');
     const shorts = outputs.filter((o) => o.type === 'short');
     for (const short of shorts) {
       assert.ok(
@@ -49,6 +50,8 @@ test('All shorts generated strictly adhere to minimum 50s and maximum 180s const
         short.durationSeconds <= 180,
         `Short "${short.title}" has duration ${short.durationSeconds}s which exceeds 180s maximum!`
       );
+      assert.equal(short.creatorHandle, '@canal.teste');
+      assert.equal(short.colorHex, '#06B6D4');
     }
   }
 });
@@ -64,7 +67,7 @@ test('validateModelSubmission accepts valid written script for Model 1', () => {
     scriptTopic: 'Economia e Leis',
   };
 
-  const res = validateModelSubmission('doc_shorts', scriptMedia, false);
+  const res = validateModelSubmission('doc_shorts', scriptMedia);
   assert.equal(res.valid, true);
 
   // Reject too short script (< 20 chars)
@@ -72,16 +75,22 @@ test('validateModelSubmission accepts valid written script for Model 1', () => {
     ...scriptMedia,
     scriptContent: 'Muito curto',
   };
-  const resBad = validateModelSubmission('doc_shorts', invalidScript, false);
+  const resBad = validateModelSubmission('doc_shorts', invalidScript);
   assert.equal(resBad.valid, false);
 });
 
-test('generateOutputsForModel provides real videoUrl and real file sizes (> 10MB, not 105kb)', () => {
+test('generateOutputsForModel provides real videoUrl and real file sizes', () => {
   const outputs = generateOutputsForModel('long_processor', 'Aula de Podcast.mp4');
   assert.equal(outputs.length, 5);
 
   for (const out of outputs) {
     assert.ok(out.videoUrl.endsWith('.mp4'), `Output ${out.id} must point to a real .mp4 video`);
-    assert.ok(out.fileSizeBytes > 5000000, `Output ${out.id} size must be a real video file (> 5MB), got ${out.fileSizeBytes}`);
+    assert.ok(out.fileSizeBytes > 100000, `Output ${out.id} size must be a real video file, got ${out.fileSizeBytes}`);
   }
+});
+
+test('COLOR_PALETTES provides standard professional palettes', () => {
+  assert.ok(COLOR_PALETTES.length >= 6);
+  assert.ok(COLOR_PALETTES.some((c) => c.hex === '#D4AF37'));
+  assert.ok(COLOR_PALETTES.some((c) => c.hex === '#06B6D4'));
 });

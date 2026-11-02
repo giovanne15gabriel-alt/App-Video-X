@@ -26,8 +26,8 @@ export const STAGES: PipelineStage[] = [
   },
   {
     id: 2,
-    label: 'IA analisando contexto e timestamps...',
-    sublabel: 'Gemini 1.5 Pro mapeando transcrição, picos de retenção e ganchos virais',
+    label: 'Analisando contexto e timestamps...',
+    sublabel: 'Mapeamento de transcrição, picos de retenção e ganchos de alto impacto',
     icon: <Zap className="w-4 h-4" />,
   },
   {

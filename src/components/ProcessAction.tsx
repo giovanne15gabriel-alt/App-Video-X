@@ -5,7 +5,6 @@ import { type ModelId, type VideoMetadata, validateModelSubmission, MODELS } fro
 interface ProcessActionProps {
   modelId: ModelId;
   media: VideoMetadata | null;
-  hasReferenceVideo: boolean;
   isProcessing: boolean;
   onProcess: () => void;
 }
@@ -13,11 +12,10 @@ interface ProcessActionProps {
 export const ProcessAction: React.FC<ProcessActionProps> = ({
   modelId,
   media,
-  hasReferenceVideo,
   isProcessing,
   onProcess,
 }) => {
-  const validation = validateModelSubmission(modelId, media, hasReferenceVideo);
+  const validation = validateModelSubmission(modelId, media);
   const model = MODELS[modelId];
 
   return (
@@ -35,7 +33,7 @@ export const ProcessAction: React.FC<ProcessActionProps> = ({
           }`}
         >
           <Play className="w-6 h-6 fill-current" />
-          <span>{isProcessing ? 'Processando Autonomamente...' : 'Processar Vídeo'}</span>
+          <span>{isProcessing ? 'Renderizando Autonomamente...' : 'Processar Vídeo'}</span>
           <ArrowRight className="w-5 h-5 ml-1" />
         </button>
 
@@ -52,7 +50,7 @@ export const ProcessAction: React.FC<ProcessActionProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
             <span>
               Pipeline autônomo pronto para gerar{' '}
-              <strong className="text-white font-semibold">{model.badge}</strong> sem intervenção manual.
+              <strong className="text-white font-semibold">{model.badge}</strong> com áudio, cortes e legendas.
             </span>
           </p>
         )}

@@ -1,46 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { ModelSelector } from './components/ModelSelector';
 import { UploadZone } from './components/UploadZone';
 import { ProcessAction } from './components/ProcessAction';
 import { ProcessingProgress } from './components/ProcessingProgress';
 import { ResultsGallery } from './components/ResultsGallery';
-import { VideoPlayerModal } from './components/VideoPlayerModal';
+import { InteractiveVideoStudio } from './components/InteractiveVideoStudio';
 import { PipelineInspector } from './components/PipelineInspector';
 import {
   type ModelId,
   type VideoMetadata,
   type GeneratedOutput,
-  MODELS,
   generateOutputsForModel,
   buildFFmpegCommand,
 } from './utils/videoEngine';
 
-interface ReferenceVideoState {
-  name: string;
-  source: 'preset' | 'upload';
-  presetKey?: string;
-  videoUrl?: string;
-}
-
-
 export default function App() {
   const [selectedModelId, setSelectedModelId] = useState<ModelId>('doc_shorts');
   const [media, setMedia] = useState<VideoMetadata | null>(null);
-  const [referenceVideo, setReferenceVideo] = useState<ReferenceVideoState | null>({
-    name: 'Estilo Missão 14 (Vídeo Exemplo 1)',
-    source: 'preset',
-    presetKey: 'missao14',
-    videoUrl: '/assets/aistudio/WhatsApp_Video_2026-10-28_at_19.07.29_f3db054b.mp4',
-  });
 
-  // Credits & Session
-  const [credits, setCredits] = useState({
-    remaining: 140,
-    total: 200,
-    quotaHours: 2.5,
-    aiStatus: 'online',
-  });
+  // Custom User Branding & Styling (Configurable by user)
+  const [creatorHandle, setCreatorHandle] = useState('@editorx.oficial');
+  const [selectedColorHex, setSelectedColorHex] = useState('#D4AF37');
 
   // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
@@ -50,53 +31,27 @@ export default function App() {
 
   // Results state
   const [generatedOutputs, setGeneratedOutputs] = useState<GeneratedOutput[] | null>(null);
-  const [activePlayerOutput, setActivePlayerOutput] = useState<GeneratedOutput | null>(null);
+  const [activeStudioOutput, setActiveStudioOutput] = useState<GeneratedOutput | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [ffmpegCommand, setFfmpegCommand] = useState('');
   const [aiInsights, setAiInsights] = useState({
     hookDetected: 'Pico de engajamento documental identificado nos primeiros segundos com alto valor informacional.',
     narrativePacing: 'Cortes dinâmicos e cartelas informativas com narração masculina brasileira padrão (mínimo de 50s garantido).',
     viralScore: 98,
-    soundtrackSuggestion: 'Cinematic Minimalist Beat (84 BPM) - Volume -18dB',
+    soundtrackSuggestion: 'Cinematic Minimalist Beat (84 BPM) - Volume -22dB',
     cleanCutsCount: 22,
   });
 
-  // Fetch initial credits from backend
-  useEffect(() => {
-    fetch('/api/credits')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) {
-          setCredits({
-            remaining: data.creditsRemaining,
-            total: data.creditsTotal,
-            quotaHours: data.maxHoursQuota,
-            aiStatus: data.aiStatus,
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  // When switching model, set appropriate defaults
+  // When switching model
   const handleSelectModel = (id: ModelId) => {
     setSelectedModelId(id);
     setGeneratedOutputs(null);
-    if (id === 'doc_shorts' && !referenceVideo) {
-      setReferenceVideo({
-        name: 'Estilo Missão 14 (Vídeo Exemplo 1)',
-        source: 'preset',
-        presetKey: 'missao14',
-        videoUrl: '/assets/aistudio/WhatsApp_Video_2026-10-28_at_19.07.29_f3db054b.mp4',
-      });
-    }
   };
 
   const handleMediaChange = (newMedia: VideoMetadata | null) => {
     setMedia(newMedia);
     setGeneratedOutputs(null);
   };
-
 
   // Autonomous Video Processing Trigger
   const handleProcessVideo = async () => {
@@ -121,12 +76,12 @@ export default function App() {
         media.source === 'script'
           ? `[00:02] Roteiro validado: tema "${media.scriptTopic || 'Documentário'}" estruturado com sucesso.`
           : `[00:02] Mídia validada: ${media.durationSeconds}s, formato ${media.format}.`,
-        `[00:03] Conectando ao Gemini 1.5 Pro Engine para análise narrativa...`,
+        `[00:03] Aplicando marca d'água "${creatorHandle}" e paleta ${selectedColorHex}...`,
       ]);
       setCurrentStageIndex(1);
     }, 1200);
 
-    // Stage 2: AI Context analysis & timestamps
+    // Stage 2: Narrative context & timestamps
     setTimeout(() => {
       setProgressPercent(48);
       const isLong = selectedModelId === 'long_processor';
@@ -134,13 +89,11 @@ export default function App() {
       setTerminalLogs((prev) => [
         ...prev,
         isScript
-          ? `[00:04] Pesquisando referências legislativas, dados numéricos e fatos contextuais...`
+          ? `[00:04] Pesquisando dados oficiais e sintetizando narração brasileira padrão...`
           : `[00:04] Mapeando transcrição de áudio e picos de retenção...`,
-        isScript
-          ? `[00:05] Gerando narração brasileira (voz masculina agradável e confiante padrão)...`
-          : isLong
-          ? `[00:05] Identificados 3 ganchos virais (9:16, >=50s) + 2 vídeos longos de YouTube (16:9)...`
-          : `[00:05] Padrão documental estruturado com base no vídeo de referência...`,
+        isLong
+          ? `[00:05] Identificados 3 ganchos virais (9:16, ≥50s) + 2 vídeos longos de YouTube (16:9)...`
+          : `[00:05] Estrutura narrativa documental montada com sucesso...`,
         `[00:06] Extraindo timestamps de corte e parâmetros dinâmicos (mínimo de 50s garantido)...`,
       ]);
       setCurrentStageIndex(2);
@@ -154,22 +107,21 @@ export default function App() {
         `[00:08] Executando FFmpeg: cortes limpos, zooms e enquadramento nativo...`,
         selectedModelId === 'corp_tech'
           ? `[00:09] Aplicando timelapse inteligente nas etapas repetitivas de software...`
-          : `[00:09] Normalizando áudio estéreo com perfil de masterização broadcast...`,
+          : `[00:09] Mixando trilha sem direitos autorais (-22dB) e efeitos sonoros sutis...`,
       ]);
       setCurrentStageIndex(3);
     }, 4500);
 
-    // Stage 4: Subtitles generation
+    // Stage 4: Subtitles & Video Assembly
     setTimeout(() => {
       setProgressPercent(90);
       setTerminalLogs((prev) => [
         ...prev,
-        `[00:10] Gerando legendas animadas sincronizadas com a voz...`,
-        `[00:11] Renderizando arquivos MP4 finais para exportação imediata no CapCut...`,
+        `[00:10] Gerando legendas animadas sincronizadas com a voz do protagonista...`,
+        `[00:11] Renderizando arquivos MP4 finais com faststart para reprodução e CapCut...`,
       ]);
       setCurrentStageIndex(4);
     }, 6200);
-
 
     // Stage 5: Finish & API request call
     try {
@@ -179,7 +131,8 @@ export default function App() {
         body: JSON.stringify({
           modelId: selectedModelId,
           media,
-          referenceVideo,
+          creatorHandle,
+          colorPalette: selectedColorHex,
         }),
       });
 
@@ -194,7 +147,7 @@ export default function App() {
         if (data.outputs) {
           setGeneratedOutputs(data.outputs);
         } else {
-          setGeneratedOutputs(generateOutputsForModel(selectedModelId, media.title));
+          setGeneratedOutputs(generateOutputsForModel(selectedModelId, media.title, creatorHandle, selectedColorHex));
         }
 
         if (data.ffmpegCommand) {
@@ -203,23 +156,12 @@ export default function App() {
           setFfmpegCommand(buildFFmpegCommand(selectedModelId, media.title, 'out.mp4'));
         }
 
-        if (data.aiInsights) {
-          setAiInsights(data.aiInsights);
-        }
-
-        // Deduct simulated credit
-        setCredits((prev) => ({
-          ...prev,
-          remaining: Math.max(0, prev.remaining - (selectedModelId === 'long_processor' ? 15 : 5)),
-        }));
-
         setIsProcessing(false);
       }, 7600);
-    } catch (e) {
-      // Robust client fallback if network has hiccups
+    } catch {
       setTimeout(() => {
         setProgressPercent(100);
-        const fallbackOutputs = generateOutputsForModel(selectedModelId, media.title);
+        const fallbackOutputs = generateOutputsForModel(selectedModelId, media.title, creatorHandle, selectedColorHex);
         setGeneratedOutputs(fallbackOutputs);
         setFfmpegCommand(buildFFmpegCommand(selectedModelId, media.title, 'out.mp4'));
         setIsProcessing(false);
@@ -230,7 +172,6 @@ export default function App() {
   // Direct download handler for real MP4 output items
   const handleDownloadOutput = (output: GeneratedOutput) => {
     const element = document.createElement('a');
-    // Direct endpoint that serves real MP4 video with proper headers
     element.href = `/api/download/${output.downloadFileName}`;
     element.download = output.downloadFileName;
     document.body.appendChild(element);
@@ -238,6 +179,15 @@ export default function App() {
     document.body.removeChild(element);
   };
 
+  // Update output in studio if re-rendered
+  const handleUpdateOutput = (updated: GeneratedOutput) => {
+    setActiveStudioOutput(updated);
+    if (generatedOutputs) {
+      setGeneratedOutputs((prev) =>
+        prev ? prev.map((o) => (o.id === updated.id ? updated : o)) : null
+      );
+    }
+  };
 
   const handleReset = () => {
     setIsProcessing(false);
@@ -249,8 +199,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col selection:bg-[#D4AF37]/30 selection:text-[#E0A96D]">
-      {/* Header with logotype & credits */}
-      <Header credits={credits} onReset={handleReset} />
+      {/* Header with logotype & engine status */}
+      <Header onReset={handleReset} />
 
       {/* Main Single-Screen Dashboard Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -258,17 +208,16 @@ export default function App() {
         <div className="mb-10 text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1C2541] border border-[#D4AF37]/30 text-xs font-semibold text-[#D4AF37] mb-4 shadow">
             <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
-            <span>SaaS Autônomo de Edição de Vídeo com IA</span>
+            <span>Sistema Autônomo de Edição de Vídeo</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-4">
-            Transforme Vídeos Brutos em{' '}
+            Transforme Conteúdo Bruto em{' '}
             <span className="text-[#D4AF37] underline decoration-[#D4AF37]/40 decoration-2 underline-offset-4">
-              Conteúdo Pronto
-            </span>{' '}
-            com IA
+              Vídeos Prontos
+            </span>
           </h1>
           <p className="text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl mx-auto">
-            Escolha um dos 3 modelos inteligentes, faça o upload do seu arquivo bruto e receba cortes de alto impacto, formato vertical 9:16 ou YouTube 16:9 de forma 100% autônoma.
+            Escolha um modelo, forneça o roteiro ou vídeo bruto, defina seu @ e paleta de cores. O motor gera cortes dinâmicos, legendas sincronizadas, narração brasileira e trilha sem direitos autorais.
           </p>
         </div>
 
@@ -279,13 +228,15 @@ export default function App() {
           disabled={isProcessing}
         />
 
-        {/* Seção 2: Upload Zone (Drag & Drop, 2GB/2h indicator, YTDL-core YouTube link) */}
+        {/* Seção 2: Upload Zone com Roteiro, Customização de @ e Paleta de Cores */}
         <UploadZone
           modelId={selectedModelId}
           media={media}
           onMediaSelect={handleMediaChange}
-          referenceVideo={referenceVideo}
-          onReferenceSelect={setReferenceVideo}
+          creatorHandle={creatorHandle}
+          onCreatorHandleChange={setCreatorHandle}
+          selectedColorHex={selectedColorHex}
+          onColorSelect={setSelectedColorHex}
           disabled={isProcessing}
         />
 
@@ -294,7 +245,6 @@ export default function App() {
           <ProcessAction
             modelId={selectedModelId}
             media={media}
-            hasReferenceVideo={Boolean(referenceVideo?.name)}
             isProcessing={isProcessing}
             onProcess={handleProcessVideo}
           />
@@ -314,23 +264,24 @@ export default function App() {
           <ResultsGallery
             modelId={selectedModelId}
             outputs={generatedOutputs}
-            onOpenPlayer={(output) => setActivePlayerOutput(output)}
+            onOpenPlayer={(output) => setActiveStudioOutput(output)}
             onDownload={handleDownloadOutput}
             onViewInspector={() => setIsInspectorOpen(true)}
             onReset={handleReset}
           />
         )}
 
-        {/* Interactive Video Player & Animated Caption Modal */}
-        {activePlayerOutput && (
-          <VideoPlayerModal
-            output={activePlayerOutput}
-            onClose={() => setActivePlayerOutput(null)}
+        {/* Interactive Video Studio / In-App Player & Live Editor */}
+        {activeStudioOutput && (
+          <InteractiveVideoStudio
+            output={activeStudioOutput}
+            onClose={() => setActiveStudioOutput(null)}
             onDownload={handleDownloadOutput}
+            onUpdateOutput={handleUpdateOutput}
           />
         )}
 
-        {/* Technical AI & FFmpeg Inspector Drawer/Modal */}
+        {/* Technical FFmpeg Pipeline Inspector */}
         {isInspectorOpen && (
           <PipelineInspector
             modelId={selectedModelId}
@@ -347,14 +298,14 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-300">Editor X</span>
             <span>—</span>
-            <span>Plataforma Full-Stack de Edição Autônoma por Inteligência Artificial</span>
+            <span>Estúdio Autônomo de Edição, Cortes e Renderização de Vídeo</span>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-slate-400">
-            <span>Gemini 1.5 Pro</span>
+            <span>Motor de Renderização Nativo</span>
             <span>•</span>
-            <span>YTDL-Core API</span>
+            <span>Pipeline FFmpeg Broadcast</span>
             <span>•</span>
-            <span>FFmpeg Pipeline</span>
+            <span>Trilha & SFX Sem Direitos Autorais</span>
           </div>
         </div>
       </footer>

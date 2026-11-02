@@ -70,7 +70,7 @@ export const PipelineInspector: React.FC<PipelineInspectorProps> = ({
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-4 h-4 text-[#D4AF37]" />
               <h4 className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">
-                Análise de Inteligência Artificial (Gemini 1.5 Pro)
+                Análise Narrativa e Estratégia de Retenção
               </h4>
             </div>
 

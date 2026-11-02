@@ -1,6 +1,6 @@
 {
   "name": "Editor X",
-  "description": "SaaS minimalista de edição automatizada de vídeos orientada por Inteligência Artificial (Modelos Documentário, Processador Longo e Demonstração Técnica).",
+  "description": "Estúdio autônomo de edição automatizada de vídeos, cortes virais e documentários informativos.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

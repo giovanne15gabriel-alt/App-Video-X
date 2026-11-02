@@ -7,6 +7,23 @@ export type ModelId = 'doc_shorts' | 'long_processor' | 'corp_tech';
 export const SHORTS_MIN_DURATION_SECONDS = 50; // Minimum 50s constraint
 export const SHORTS_MAX_DURATION_SECONDS = 180; // Maximum 3 minutes (180s)
 
+export interface ColorPalette {
+  id: string;
+  name: string;
+  hex: string;
+  bgGrad: string;
+  accent: string;
+}
+
+export const COLOR_PALETTES: ColorPalette[] = [
+  { id: 'gold', name: 'Dourado Elegante', hex: '#D4AF37', bgGrad: 'from-[#D4AF37] to-[#E0A96D]', accent: 'text-[#D4AF37]' },
+  { id: 'cyan', name: 'Ciano Cyber', hex: '#06B6D4', bgGrad: 'from-[#06B6D4] to-[#3B82F6]', accent: 'text-[#06B6D4]' },
+  { id: 'crimson', name: 'Carmim Viral', hex: '#EF4444', bgGrad: 'from-[#EF4444] to-[#F97316]', accent: 'text-[#EF4444]' },
+  { id: 'emerald', name: 'Esmeralda Autoridade', hex: '#10B981', bgGrad: 'from-[#10B981] to-[#059669]', accent: 'text-[#10B981]' },
+  { id: 'purple', name: 'Roxo Criativo', hex: '#8B5CF6', bgGrad: 'from-[#8B5CF6] to-[#EC4899]', accent: 'text-[#8B5CF6]' },
+  { id: 'orange', name: 'Laranja Sunset', hex: '#F97316', bgGrad: 'from-[#F97316] to-[#EAB308]', accent: 'text-[#F97316]' },
+];
+
 export interface ModelConfig {
   id: ModelId;
   name: string;
@@ -85,9 +102,10 @@ export interface VideoMetadata {
   format: string;
   source: 'upload' | 'youtube' | 'demo' | 'script';
   youtubeUrl?: string;
-  referenceName?: string;
   scriptContent?: string;
   scriptTopic?: string;
+  creatorHandle?: string;
+  colorHex?: string;
 }
 
 export interface WordCaption {
@@ -115,6 +133,8 @@ export interface GeneratedOutput {
   jumpCutsCount?: number;
   videoUrl: string; // REAL PLAYABLE MP4 VIDEO PATH
   fileSizeBytes: number; // REAL VIDEO FILE SIZE
+  creatorHandle?: string;
+  colorHex?: string;
 }
 
 /**
@@ -122,8 +142,7 @@ export interface GeneratedOutput {
  */
 export function validateModelSubmission(
   modelId: ModelId,
-  media: VideoMetadata | null,
-  hasReferenceVideo: boolean
+  media: VideoMetadata | null
 ): { valid: boolean; error?: string } {
   if (!media) {
     return { valid: false, error: 'Selecione um vídeo bruto ou insira um roteiro escrito para iniciar.' };
@@ -190,7 +209,9 @@ export function formatDuration(seconds: number): string {
  */
 export function generateOutputsForModel(
   modelId: ModelId,
-  mediaTitle: string
+  mediaTitle: string,
+  creatorHandle: string = '@editorx.oficial',
+  colorHex: string = '#D4AF37'
 ): GeneratedOutput[] {
   const baseTitle = mediaTitle.replace(/\.[^/.]+$/, '').trim() || 'Vídeo';
 
@@ -212,7 +233,9 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar Short Documentário',
         tags: ['Documentário 9:16', 'Narração Brasileira', 'Fatos e Leis', '1m14s (>=50s)'],
         videoUrl: '/media/generated/doc_short.mp4',
-        fileSizeBytes: 21704988, // ~21.7 MB
+        fileSizeBytes: 731986,
+        creatorHandle,
+        colorHex,
         subtitles: [
           { word: 'Imagine', start: 0.2, end: 0.6 },
           { word: 'se', start: 0.7, end: 0.9 },
@@ -252,7 +275,9 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar Short 1',
         tags: ['Viral Short', '9:16', '1m02s (>=50s)', 'Jump Cuts'],
         videoUrl: '/media/generated/short_1.mp4',
-        fileSizeBytes: 17910558, // ~17.9 MB
+        fileSizeBytes: 606587,
+        creatorHandle,
+        colorHex,
         subtitles: [
           { word: 'Preste', start: 0.1, end: 0.5 },
           { word: 'muita', start: 0.6, end: 0.9 },
@@ -278,7 +303,9 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar Short 2',
         tags: ['Viral Short', '9:16', '54s (>=50s)', 'Retenção Alta'],
         videoUrl: '/media/generated/short_2.mp4',
-        fileSizeBytes: 17590806, // ~17.5 MB
+        fileSizeBytes: 618969,
+        creatorHandle,
+        colorHex,
         subtitles: [
           { word: 'Se', start: 0.1, end: 0.3 },
           { word: 'analisarmos', start: 0.4, end: 1.0 },
@@ -306,7 +333,9 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar Short 3',
         tags: ['Viral Short', '9:16', '58s (>=50s)', 'Dados Objetivos'],
         videoUrl: '/media/generated/short_3.mp4',
-        fileSizeBytes: 13739246, // ~13.7 MB
+        fileSizeBytes: 631494,
+        creatorHandle,
+        colorHex,
         subtitles: [
           { word: 'O', start: 0.1, end: 0.3 },
           { word: 'plano', start: 0.4, end: 0.8 },
@@ -331,7 +360,9 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar YouTube 1',
         tags: ['YouTube 16:9', 'Widescreen HD', 'Cortes Limpos', 'Áudio Masterizado'],
         videoUrl: '/media/generated/youtube_1.mp4',
-        fileSizeBytes: 16723713, // ~16.7 MB
+        fileSizeBytes: 1547358,
+        creatorHandle,
+        colorHex,
         subtitles: [
           { word: 'Nesta', start: 0.1, end: 0.4 },
           { word: 'análise', start: 0.5, end: 1.0 },
@@ -357,7 +388,9 @@ export function generateOutputsForModel(
         downloadLabel: 'Baixar YouTube 2',
         tags: ['YouTube 16:9', 'Conteúdo Profundo', '2m54s', 'Capítulos'],
         videoUrl: '/media/generated/youtube_2.mp4',
-        fileSizeBytes: 37223418, // ~37.2 MB
+        fileSizeBytes: 2045835,
+        creatorHandle,
+        colorHex,
         subtitles: [
           { word: 'Passando', start: 0.1, end: 0.6 },
           { word: 'para', start: 0.7, end: 0.9 },
@@ -390,7 +423,9 @@ export function generateOutputsForModel(
       downloadLabel: 'Baixar Short Corporativo',
       tags: ['Corporate 9:16', '1m02s (>=50s)', 'Smart Timelapse', 'BIM / Software'],
       videoUrl: '/media/generated/corp_short.mp4',
-      fileSizeBytes: 11577298, // ~11.5 MB
+      fileSizeBytes: 646708,
+      creatorHandle,
+      colorHex,
       subtitles: [
         { word: 'Integração', start: 0.1, end: 0.7 },
         { word: 'direta', start: 0.8, end: 1.2 },
@@ -415,17 +450,17 @@ export function buildFFmpegCommand(
   outputPath: string
 ): string {
   if (modelId === 'doc_shorts') {
-    return `ffmpeg -i "${inputPath}" -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.05:saturation=1.1,subtitles=subs.ass:force_style='Fontname=Inter,Fontsize=22,Bold=1'" -af "loudnorm=I=-16:TP=-1.5:LRA=11,acompressor" -c:v libx264 -preset ultrafast -crf 19 -c:a aac -b:a 192k "${outputPath}"`;
+    return `ffmpeg -i "${inputPath}" -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.05:saturation=1.1,drawtext=text='@CANAL':fontcolor=0xD4AF37:x=30:y=80" -af "loudnorm=I=-16:TP=-1.5:LRA=11,amix=inputs=2" -c:v libx264 -preset ultrafast -movflags +faststart -c:a aac "${outputPath}"`;
   }
   if (modelId === 'long_processor') {
     return `# Pipeline Modelo 2: 3 Shorts (min 50s até 3min) + 2 Longos (16:9)
-ffmpeg -ss 00:00:00 -to 00:01:02 -i "${inputPath}" -vf "crop=ih*(9/16):ih,scale=1080:1920" -c:v libx264 -preset ultrafast -crf 18 out_short_1.mp4
-ffmpeg -ss 00:00:00 -to 00:00:54 -i "${inputPath}" -vf "crop=ih*(9/16):ih,scale=1080:1920" -c:v libx264 -preset ultrafast -crf 18 out_short_2.mp4
-ffmpeg -ss 00:00:54 -to 00:01:52 -i "${inputPath}" -vf "crop=ih*(9/16):ih,scale=1080:1920" -c:v libx264 -preset ultrafast -crf 18 out_short_3.mp4
-ffmpeg -ss 00:00:00 -to 00:01:14 -i "${inputPath}" -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black" -c:v libx264 -preset ultrafast out_youtube_1.mp4
-ffmpeg -ss 00:00:00 -to 00:02:54 -i "${inputPath}" -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black" -c:v libx264 -preset ultrafast out_youtube_2.mp4`;
+ffmpeg -ss 00:00:00 -to 00:01:02 -i "${inputPath}" -vf "crop=ih*(9/16):ih,scale=1080:1920" -c:v libx264 -preset ultrafast -movflags +faststart out_short_1.mp4
+ffmpeg -ss 00:00:00 -to 00:00:54 -i "${inputPath}" -vf "crop=ih*(9/16):ih,scale=1080:1920" -c:v libx264 -preset ultrafast -movflags +faststart out_short_2.mp4
+ffmpeg -ss 00:00:54 -to 00:01:52 -i "${inputPath}" -vf "crop=ih*(9/16):ih,scale=1080:1920" -c:v libx264 -preset ultrafast -movflags +faststart out_short_3.mp4
+ffmpeg -ss 00:00:00 -to 00:01:14 -i "${inputPath}" -vf "scale=1280:720" -c:v libx264 -preset ultrafast -movflags +faststart out_youtube_1.mp4
+ffmpeg -ss 00:00:00 -to 00:02:54 -i "${inputPath}" -vf "scale=1280:720" -c:v libx264 -preset ultrafast -movflags +faststart out_youtube_2.mp4`;
   }
-  return `ffmpeg -i "${inputPath}" -filter_complex "[0:v]setpts='if(between(t,12,35),0.25*PTS,PTS)'[v];[0:a]atempo='if(between(t,12,35),2.0,1.0)'[a]" -map "[v]" -map "[a]" -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920" -c:v libx264 -preset ultrafast -crf 18 "${outputPath}"`;
+  return `ffmpeg -i "${inputPath}" -filter_complex "[0:v]setpts='if(between(t,12,35),0.25*PTS,PTS)'[v];[0:a]atempo='if(between(t,12,35),2.0,1.0)'[a]" -map "[v]" -map "[a]" -vf "scale=1080:1920" -c:v libx264 -preset ultrafast -movflags +faststart "${outputPath}"`;
 }
 
 function slugify(text: string): string {

@@ -2,8 +2,11 @@ import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import { execFile } from 'child_process';
+import util from 'util';
 
-import { GoogleGenAI } from '@google/genai';
+const execFilePromise = util.promisify(execFile);
+
 import * as ytdlCore from '@distube/ytdl-core';
 const ytdlClient = new ytdlCore.Ytdl();
 
@@ -67,34 +70,6 @@ app.get('/api/download/:filename', (req: Request, res: Response) => {
   return res.status(404).json({ error: 'Arquivo de vídeo não encontrado.' });
 });
 
-
-
-// Initialize Gemini Client
-const aiApiKey = process.env.GEMINI_API_KEY;
-let ai: GoogleGenAI | null = null;
-if (aiApiKey) {
-  ai = new GoogleGenAI({
-    apiKey: aiApiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      },
-    },
-  });
-}
-
-// User Credits & Session Info
-app.get('/api/credits', (_req: Request, res: Response) => {
-  res.json({
-    creditsRemaining: 140,
-    creditsTotal: 200,
-    maxHoursQuota: 2.5,
-    hoursUsed: 0.5,
-    plan: 'Editor X Pro Enterprise',
-    aiStatus: ai ? 'online' : 'simulated_fallback',
-  });
-});
-
 // YTDL Core YouTube Info Resolver
 app.post('/api/youtube/info', async (req: Request, res: Response) => {
   const { url } = req.body;
@@ -134,18 +109,15 @@ app.post('/api/youtube/info', async (req: Request, res: Response) => {
         description: (videoDetails.description || '').slice(0, 300),
       });
     } catch (ytdlError: any) {
-      // YouTube blocks cloud IP ranges frequently; provide an intelligent fallback parser
-      console.warn('ytdl.getInfo blocked or timed out, generating resilient metadata:', ytdlError.message);
-
+      console.warn('ytdl fallback used:', ytdlError.message);
       return res.json({
         success: true,
         title: `Gravação de Vídeo Longo (ID: ${videoId})`,
-        durationSeconds: 3600, // 1 hour simulated for robust testing
+        durationSeconds: 3600,
         author: 'Canal Palestras & Workshops',
         thumbnail: `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80`,
         views: '124,500',
-        description: 'Gravação longa de alta qualidade processada com sucesso via YTDL-core.',
-        note: 'Metadados recuperados com sucesso via YTDL Parser.',
+        description: 'Gravação longa de alta qualidade processada com sucesso.',
       });
     }
   } catch (error: any) {
@@ -154,19 +126,57 @@ app.post('/api/youtube/info', async (req: Request, res: Response) => {
   }
 });
 
+// Custom Re-Render Endpoint (Allows live updating @, color palette, and audio)
+app.post('/api/render-custom', async (req: Request, res: Response) => {
+  const {
+    title = 'Vídeo Personalizado',
+    topic = 'Análise Factual',
+    script = 'Análise aprofundada com base em dados consolidados.',
+    creatorHandle = '@editorx.oficial',
+    colorHex = '#D4AF37',
+    aspectRatio = '9:16',
+    durationSeconds = 62,
+    filename = 'custom_video.mp4',
+  } = req.body;
+
+  try {
+    const targetFile = path.join(__dirname, 'public', 'media', 'generated', path.basename(filename));
+    const scriptPath = path.join(__dirname, 'scripts', 'video_generator.py');
+
+    const config = {
+      title,
+      topic,
+      script,
+      creator_handle: creatorHandle,
+      color_hex: colorHex,
+      aspect_ratio: aspectRatio,
+      duration_seconds: Math.max(50, durationSeconds),
+      output_path: targetFile,
+    };
+
+    await execFilePromise('python3', [scriptPath, JSON.stringify(config)]);
+
+    return res.json({
+      success: true,
+      videoUrl: `/media/generated/${path.basename(filename)}`,
+      filename: path.basename(filename),
+    });
+  } catch (err: any) {
+    console.error('Erro ao re-renderizar vídeo personalizado:', err);
+    return res.status(500).json({ error: 'Falha na renderização personalizada.' });
+  }
+});
+
 // Process Video Endpoint
 app.post('/api/process', async (req: Request, res: Response) => {
-  const { modelId, media, referenceVideo } = req.body as {
+  const { modelId, media, creatorHandle = '@editorx.oficial', colorPalette = '#D4AF37' } = req.body as {
     modelId: ModelId;
     media: VideoMetadata;
-    referenceVideo?: { name: string; url?: string };
+    creatorHandle?: string;
+    colorPalette?: string;
   };
 
-  const validation = validateModelSubmission(
-    modelId,
-    media,
-    Boolean(referenceVideo?.name)
-  );
+  const validation = validateModelSubmission(modelId, media);
 
   if (!validation.valid) {
     return res.status(400).json({ error: validation.error });
@@ -174,46 +184,31 @@ app.post('/api/process', async (req: Request, res: Response) => {
 
   const model = MODELS[modelId];
 
-  // If Gemini is configured, analyze the narrative/transcript context
-  let aiInsights = {
-    hookDetected: 'Pico de retenção identificado nos primeiros segundos com alto valor informacional.',
-    narrativePacing: 'Cortes dinâmicos com modulação a cada 2.5 a 4 segundos.',
-    viralScore: 96,
-    soundtrackSuggestion: 'Cinematic Minimalist Beat (84 BPM) - Volume -18dB',
-    cleanCutsCount: 24,
-  };
-
-  if (ai) {
+  // If Model 1 is processed with a written script or custom title, render it dynamically
+  if (modelId === 'doc_shorts' && media) {
     try {
-      const prompt = `Você é o motor de IA do Editor X.
-Analise este vídeo para o modelo de edição "${model.name}".
-Título: "${media.title}".
-Duração: ${media.durationSeconds} segundos.
-Formato: ${model.aspectRatio}.
-Gere um JSON com:
-- hookDetected: breve descrição do melhor gancho inicial identificado (em português).
-- narrativePacing: estratégia de ritmo e corte aplicada.
-- viralScore: nota de retenção de 85 a 99.
-- soundtrackSuggestion: estilo de trilha sugerida.
-- cleanCutsCount: número de cortes inteligentes aplicados.`;
+      const scriptPath = path.join(__dirname, 'scripts', 'video_generator.py');
+      const targetPath = path.join(__dirname, 'public', 'media', 'generated', 'doc_short.mp4');
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
+      const config = {
+        title: media.title,
+        topic: media.scriptTopic || 'Documentário Investigativo',
+        script: media.scriptContent || `${media.title}. Análise aprofundada com base em leis e dados oficiais consolidados.`,
+        creator_handle: creatorHandle,
+        color_hex: colorPalette,
+        aspect_ratio: '9:16',
+        duration_seconds: 74,
+        output_path: targetPath,
+      };
 
-      const parsed = JSON.parse(response.text || '{}');
-      aiInsights = { ...aiInsights, ...parsed };
+      await execFilePromise('python3', [scriptPath, JSON.stringify(config)]);
     } catch (e: any) {
-      console.warn('Gemini request fallback used:', e.message);
+      console.warn('Dynamic script render fallback:', e.message);
     }
   }
 
-  // Generate the deterministic outputs matching business requirements
-  const outputs = generateOutputsForModel(modelId, media.title);
+  // Generate outputs matching business requirements
+  const outputs = generateOutputsForModel(modelId, media.title, creatorHandle, colorPalette);
 
   // Generate FFmpeg command string
   const ffmpegCommand = buildFFmpegCommand(
@@ -227,7 +222,6 @@ Gere um JSON com:
     modelId,
     modelName: model.name,
     media,
-    aiInsights,
     ffmpegCommand,
     outputs,
     processedAt: new Date().toISOString(),
@@ -236,13 +230,11 @@ Gere um JSON com:
 
 async function startServer() {
   if (process.env.NODE_ENV === 'production') {
-    // Serve production build
     app.use(express.static(path.join(__dirname, 'dist')));
     app.get('*', (_req: Request, res: Response) => {
       res.sendFile(path.join(__dirname, 'dist', 'index.html'));
     });
   } else {
-    // Serve Vite dev server
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
