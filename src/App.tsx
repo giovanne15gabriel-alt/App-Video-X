@@ -22,6 +22,7 @@ export default function App() {
   // Custom User Branding & Styling (Configurable by user)
   const [creatorHandle, setCreatorHandle] = useState('@editorx.oficial');
   const [selectedColorHex, setSelectedColorHex] = useState('#D4AF37');
+  const [voiceGender, setVoiceGender] = useState<'male' | 'female'>('male');
 
   // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
@@ -130,9 +131,13 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           modelId: selectedModelId,
-          media,
+          media: {
+            ...media,
+            voiceGender,
+          },
           creatorHandle,
           colorPalette: selectedColorHex,
+          voiceGender,
         }),
       });
 
@@ -141,13 +146,22 @@ export default function App() {
         setProgressPercent(100);
         setTerminalLogs((prev) => [
           ...prev,
-          `[00:12] Sucesso! ${data.outputs?.length || 1} arquivos gerados e prontos para download.`,
+          `[00:12] Sucesso! ${data.outputs?.length || 1} arquivos gerados com narração ${voiceGender === 'male' ? 'masculina' : 'feminina'} e prontos para download.`,
         ]);
 
         if (data.outputs) {
           setGeneratedOutputs(data.outputs);
         } else {
-          setGeneratedOutputs(generateOutputsForModel(selectedModelId, media.title, creatorHandle, selectedColorHex));
+          setGeneratedOutputs(
+            generateOutputsForModel(
+              selectedModelId,
+              media.title,
+              creatorHandle,
+              selectedColorHex,
+              voiceGender,
+              `${media.scriptTopic || ''} ${media.scriptContent || ''}`
+            )
+          );
         }
 
         if (data.ffmpegCommand) {
@@ -237,6 +251,8 @@ export default function App() {
           onCreatorHandleChange={setCreatorHandle}
           selectedColorHex={selectedColorHex}
           onColorSelect={setSelectedColorHex}
+          voiceGender={voiceGender}
+          onVoiceGenderChange={setVoiceGender}
           disabled={isProcessing}
         />
 

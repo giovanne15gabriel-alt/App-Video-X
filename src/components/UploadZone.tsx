@@ -19,15 +19,24 @@ import {
   Volume2,
   Music,
   Sliders,
+  User,
+  Wand2,
+  Box,
+  Eye,
+  X,
 } from 'lucide-react';
 import {
   formatBytes,
   formatDuration,
   type ModelId,
   type VideoMetadata,
+  type VoiceGender,
+  type OptimizedScriptResult,
   MODELS,
   COLOR_PALETTES,
   SHORTS_MIN_DURATION_SECONDS,
+  optimizeScriptWithAI,
+  detectContextualTheme,
 } from '../utils/videoEngine';
 
 interface UploadZoneProps {
@@ -38,6 +47,8 @@ interface UploadZoneProps {
   onCreatorHandleChange: (handle: string) => void;
   selectedColorHex: string;
   onColorSelect: (hex: string) => void;
+  voiceGender: VoiceGender;
+  onVoiceGenderChange: (gender: VoiceGender) => void;
   disabled?: boolean;
 }
 
@@ -49,6 +60,8 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
   onCreatorHandleChange,
   selectedColorHex,
   onColorSelect,
+  voiceGender,
+  onVoiceGenderChange,
   disabled = false,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -114,6 +127,11 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
     setYtdlError(null);
   };
 
+  // Script optimization states
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizedModalOpen, setOptimizedModalOpen] = useState(false);
+  const [optimizedResult, setOptimizedResult] = useState<OptimizedScriptResult | null>(null);
+
   // Submit script for Model 1
   const handleApplyScript = () => {
     if (!scriptContent.trim() || scriptContent.trim().length < 15) {
@@ -130,7 +148,63 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
       scriptTopic: scriptTopic.trim(),
       creatorHandle,
       colorHex: selectedColorHex,
+      voiceGender,
     });
+  };
+
+  // Run AI/Autonomous Script Optimization
+  const handleOptimizeScript = async () => {
+    const rawText = scriptContent.trim() || scriptTopic.trim() || 'Documentário sobre temas atuais';
+    setIsOptimizing(true);
+
+    try {
+      const res = await fetch('/api/optimize-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rawScript: rawText,
+          rawTopic: scriptTopic,
+          voiceGender,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.result) {
+        setOptimizedResult(data.result);
+      } else {
+        const fallback = optimizeScriptWithAI(rawText, scriptTopic, voiceGender);
+        setOptimizedResult(fallback);
+      }
+      setOptimizedModalOpen(true);
+    } catch {
+      const fallback = optimizeScriptWithAI(rawText, scriptTopic, voiceGender);
+      setOptimizedResult(fallback);
+      setOptimizedModalOpen(true);
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  // Apply the optimized script proposal
+  const handleConfirmOptimizedScript = () => {
+    if (!optimizedResult) return;
+    setScriptTopic(optimizedResult.refinedTopic);
+    setScriptContent(optimizedResult.enhancedScript);
+
+    onMediaSelect({
+      title: `Roteiro: ${optimizedResult.refinedTopic}`,
+      durationSeconds: optimizedResult.estimatedDurationSeconds || 74,
+      sizeBytes: 15 * 1024 * 1024,
+      format: 'text/script',
+      source: 'script',
+      scriptContent: optimizedResult.enhancedScript,
+      scriptTopic: optimizedResult.refinedTopic,
+      creatorHandle,
+      colorHex: selectedColorHex,
+      voiceGender,
+    });
+
+    setOptimizedModalOpen(false);
   };
 
   // Fetch YouTube Info via backend YTDL-core endpoint
@@ -316,9 +390,33 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                     Roteiro para Montagem Documental com Narração
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-[#E0A96D] bg-[#D4AF37]/10 px-3 py-1 rounded-lg border border-[#D4AF37]/20">
-                  <Mic className="w-3.5 h-3.5" />
-                  <span>Narração Brasileira Padrão Masculina Agradável</span>
+                
+                {/* Voice Gender Selection Pill */}
+                <div className="flex items-center gap-1 bg-[#0B132B] p-1 rounded-xl border border-slate-700/80">
+                  <button
+                    type="button"
+                    onClick={() => onVoiceGenderChange('male')}
+                    className={`px-3 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      voiceGender === 'male'
+                        ? 'bg-gradient-to-r from-[#D4AF37] to-[#E0A96D] text-[#090D16] shadow font-black'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    <span>👨 Voz Masculina (Padrão BR)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onVoiceGenderChange('female')}
+                    className={`px-3 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      voiceGender === 'female'
+                        ? 'bg-gradient-to-r from-[#D4AF37] to-[#E0A96D] text-[#090D16] shadow font-black'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    <span>👩 Voz Feminina (Padrão BR)</span>
+                  </button>
                 </div>
               </div>
 
@@ -330,36 +428,63 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                   type="text"
                   value={scriptTopic}
                   onChange={(e) => setScriptTopic(e.target.value)}
-                  placeholder="Ex: Artigo 18 da Constituição, Indicadores de Gestão, Reforma Fiscais"
+                  placeholder="Ex: Cavalos de Raça, Varejo e Comércio, Artigo 18 da Constituição, Gestão de Custos"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B132B] border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#D4AF37]"
                 />
               </div>
 
               <div className="mb-3">
-                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                  Texto do Roteiro Escrito
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-semibold text-slate-400">
+                    Texto do Roteiro Escrito
+                  </label>
+                  <span className="text-[10px] text-slate-500">
+                    Otimizado com pontuação fonética para fala natural e respiração humana
+                  </span>
+                </div>
                 <textarea
                   rows={4}
                   value={scriptContent}
                   onChange={(e) => setScriptContent(e.target.value)}
-                  placeholder="Insira aqui o roteiro ou tese do vídeo. O sistema estruturará os dados, cartelas visuais, ritmo documental e narração brasileira..."
+                  placeholder="Insira aqui o roteiro bruto ou orientações gerais. O motor analisa o tema (ex: cavalos, comércio, dúvidas 3D, impostos), remove clichês, estrutura os 5 atos e pesquisa dados..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B132B] border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#D4AF37] leading-relaxed"
                 />
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-slate-400">
-                  Tempo mínimo garantido: 50 segundos. Formato vertical 9:16.
-                </span>
-                <button
-                  type="button"
-                  onClick={handleApplyScript}
-                  disabled={!scriptContent.trim() || scriptContent.trim().length < 15}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#E0A96D] text-[#090D16] text-xs font-black uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer"
-                >
-                  Confirmar Roteiro
-                </button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleOptimizeScript}
+                    disabled={isOptimizing}
+                    className="px-4 py-2 rounded-xl bg-[#1C2541] hover:bg-[#D4AF37]/20 border border-[#D4AF37]/50 text-[#D4AF37] text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-md hover:scale-[1.02]"
+                    title="Analisa o tema, adiciona ganchos virais e gera prévias de imagens 3D e fotos contextuais"
+                  >
+                    {isOptimizing ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
+                    ) : (
+                      <Wand2 className="w-4 h-4 text-[#D4AF37]" />
+                    )}
+                    <span>✦ Revisar &amp; Otimizar Roteiro com IA</span>
+                  </button>
+                  <span className="text-[11px] text-slate-400 hidden lg:inline">
+                    (Ganchos de 3s, pontuação natural e seleção de imagens contextuais)
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-slate-400 hidden sm:inline">
+                    ≥ 50s em 9:16
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleApplyScript}
+                    disabled={!scriptContent.trim() || scriptContent.trim().length < 15}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#E0A96D] text-[#090D16] text-xs font-black uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer shadow"
+                  >
+                    Confirmar Roteiro
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -560,45 +685,47 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
           </div>
         )}
 
-        {/* CUSTOMIZATION PANEL: Creator @, Color Palette & Audio FX */}
-        <div className="pt-6 border-t border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* CUSTOMIZATION PANEL: Creator @, Color Palette, Voice Gender & Audio FX */}
+        <div className="pt-6 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           
           {/* 1. Creator @ / Handle */}
-          <div className="bg-[#090D16]/60 rounded-xl p-4 border border-slate-800/80">
-            <div className="flex items-center gap-2 mb-2">
-              <AtSign className="w-4 h-4 text-[#D4AF37]" />
-              <label htmlFor="creator-handle" className="text-xs font-bold uppercase tracking-wider text-white">
-                @ do Canal / Criador
-              </label>
+          <div className="bg-[#090D16]/60 rounded-xl p-4 border border-slate-800/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <AtSign className="w-4 h-4 text-[#D4AF37]" />
+                <label htmlFor="creator-handle" className="text-xs font-bold uppercase tracking-wider text-white">
+                  @ do Canal
+                </label>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-2.5">
+                Cartela estilizada no topo do vídeo com a paleta escolhida.
+              </p>
             </div>
-            <p className="text-[11px] text-slate-400 mb-3">
-              Inserido no topo do vídeo em cartela estilizada com a paleta escolhida.
-            </p>
-            <div className="relative">
-              <input
-                id="creator-handle"
-                type="text"
-                disabled={disabled}
-                value={creatorHandle}
-                onChange={(e) => onCreatorHandleChange(e.target.value)}
-                placeholder="@seucanal"
-                className="w-full px-3.5 py-2 rounded-xl bg-[#0B132B] border border-slate-700 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-[#D4AF37]"
-              />
-            </div>
+            <input
+              id="creator-handle"
+              type="text"
+              disabled={disabled}
+              value={creatorHandle}
+              onChange={(e) => onCreatorHandleChange(e.target.value)}
+              placeholder="@seucanal"
+              className="w-full px-3.5 py-2 rounded-xl bg-[#0B132B] border border-slate-700 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-[#D4AF37]"
+            />
           </div>
 
           {/* 2. Color Palette Selector */}
-          <div className="bg-[#090D16]/60 rounded-xl p-4 border border-slate-800/80">
-            <div className="flex items-center gap-2 mb-2">
-              <Palette className="w-4 h-4 text-[#D4AF37]" />
-              <label className="text-xs font-bold uppercase tracking-wider text-white">
-                Paleta de Cores
-              </label>
+          <div className="bg-[#090D16]/60 rounded-xl p-4 border border-slate-800/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Palette className="w-4 h-4 text-[#D4AF37]" />
+                <label className="text-xs font-bold uppercase tracking-wider text-white">
+                  Paleta de Cores
+                </label>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-2.5">
+                Cor de destaque das legendas, cartelas e badges.
+              </p>
             </div>
-            <p className="text-[11px] text-slate-400 mb-3">
-              Define a cor de destaque das legendas, cartelas e badges.
-            </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {COLOR_PALETTES.map((pal) => {
                 const isSelected = selectedColorHex.toLowerCase() === pal.hex.toLowerCase();
                 return (
@@ -607,18 +734,18 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                     type="button"
                     disabled={disabled}
                     onClick={() => onColorSelect(pal.hex)}
-                    className={`flex items-center gap-2 p-1.5 rounded-lg border text-left transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 p-1.5 rounded-lg border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-white bg-[#1C2541] shadow'
+                        ? 'border-[#D4AF37] bg-[#1C2541] shadow'
                         : 'border-slate-800 hover:border-slate-700 bg-[#0B132B]'
                     }`}
                     title={pal.name}
                   >
                     <span
-                      className="w-3.5 h-3.5 rounded-full shrink-0 shadow"
+                      className="w-3 h-3 rounded-full shrink-0 shadow"
                       style={{ backgroundColor: pal.hex }}
                     />
-                    <span className="text-[10px] font-semibold text-slate-200 truncate">
+                    <span className="text-[9px] font-semibold text-slate-200 truncate">
                       {pal.name.split(' ')[0]}
                     </span>
                   </button>
@@ -627,29 +754,82 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
             </div>
           </div>
 
-          {/* 3. Audio & SFX Configuration */}
-          <div className="bg-[#090D16]/60 rounded-xl p-4 border border-slate-800/80">
-            <div className="flex items-center gap-2 mb-2">
-              <Music className="w-4 h-4 text-[#D4AF37]" />
-              <label className="text-xs font-bold uppercase tracking-wider text-white">
-                Trilha & Efeitos Sonoros
-              </label>
+          {/* 3. Voice Gender Selector (Masculina vs Feminina Natural) */}
+          <div className="bg-[#090D16]/60 rounded-xl p-4 border border-slate-800/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-[#D4AF37]" />
+                  <label className="text-xs font-bold uppercase tracking-wider text-white">
+                    Narração Brasileira
+                  </label>
+                </div>
+                <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                  Natural
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-2.5">
+                Vozes calibradas com ressonância acústica e respiração humana.
+              </p>
             </div>
-            <p className="text-[11px] text-slate-400 mb-3">
-              Música de fundo sem direitos autorais e SFX suaves (não cobrem a voz).
-            </p>
-            <div className="space-y-2 text-[11px]">
-              <div className="flex items-center justify-between p-2 rounded-lg bg-[#0B132B] border border-slate-800">
-                <span className="text-slate-300 font-medium">Voz Principal (Protagonista):</span>
-                <span className="text-emerald-400 font-bold">100% (Destaque)</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onVoiceGenderChange('male')}
+                className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                  voiceGender === 'male'
+                    ? 'border-[#D4AF37] bg-[#1C2541] shadow text-white'
+                    : 'border-slate-800 bg-[#0B132B] text-slate-400 hover:text-white hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span className="text-xs font-bold">Masculina</span>
+                </div>
+                <span className="text-[9px] text-slate-400">Grave &amp; Firme</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onVoiceGenderChange('female')}
+                className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                  voiceGender === 'female'
+                    ? 'border-[#D4AF37] bg-[#1C2541] shadow text-white'
+                    : 'border-slate-800 bg-[#0B132B] text-slate-400 hover:text-white hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span className="text-xs font-bold">Feminina</span>
+                </div>
+                <span className="text-[9px] text-slate-400">Límpida &amp; Ágil</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 4. Audio & SFX Configuration */}
+          <div className="bg-[#090D16]/60 rounded-xl p-4 border border-slate-800/80 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Music className="w-4 h-4 text-[#D4AF37]" />
+                <label className="text-xs font-bold uppercase tracking-wider text-white">
+                  Trilha &amp; SFX
+                </label>
               </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-[#0B132B] border border-slate-800">
-                <span className="text-slate-300 font-medium">Trilha Sem Copyright:</span>
-                <span className="text-[#D4AF37] font-bold">-22 dB (Baixo)</span>
+              <p className="text-[11px] text-slate-400 mb-2.5">
+                Mixagem em tempo real balanceada para sobressair a fala.
+              </p>
+            </div>
+            <div className="space-y-1.5 text-[10px]">
+              <div className="flex items-center justify-between p-1.5 rounded-lg bg-[#0B132B] border border-slate-800">
+                <span className="text-slate-300">Voz Narrador:</span>
+                <span className="text-emerald-400 font-bold">100% Master</span>
               </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-[#0B132B] border border-slate-800">
-                <span className="text-slate-300 font-medium">SFX de Cortes (Whoosh):</span>
-                <span className="text-emerald-400 font-bold">Ativo (-18 dB)</span>
+              <div className="flex items-center justify-between p-1.5 rounded-lg bg-[#0B132B] border border-slate-800">
+                <span className="text-slate-300">Trilha Sem Copyright:</span>
+                <span className="text-[#D4AF37] font-bold">-22 dB</span>
               </div>
             </div>
           </div>
@@ -657,6 +837,158 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
         </div>
 
       </div>
+
+      {/* AI SCRIPT OPTIMIZATION MODAL */}
+      {optimizedModalOpen && optimizedResult && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#090D16]/90 backdrop-blur-md overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="relative w-full max-w-3xl bg-[#0B132B] border border-[#D4AF37] rounded-2xl shadow-2xl overflow-hidden flex flex-col my-8 max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-[#1C2541]/80">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37]">
+                  <Wand2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Roteiro Otimizado &amp; Direção de Cenas (5 Atos)
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <span className="text-[#D4AF37] font-bold">
+                      Tema: {optimizedResult.theme.label}
+                    </span>
+                    <span>•</span>
+                    <span className="text-emerald-400 font-semibold">
+                      {optimizedResult.retentionScore}% Retenção Prevista
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setOptimizedModalOpen(false)}
+                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5">
+              
+              {/* Retention hook banner */}
+              <div className="p-4 rounded-xl bg-[#090D16] border border-slate-700/80 flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-[#D4AF37] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-[#D4AF37] mb-1">
+                    Gancho Viral nos Primeiros 3 Segundos
+                  </h4>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {optimizedResult.hookExplanation}
+                  </p>
+                </div>
+              </div>
+
+              {/* Title & Topic suggestion */}
+              <div className="bg-[#1C2541]/50 p-4 rounded-xl border border-slate-700">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Título Sugerido para Alta Retenção
+                </label>
+                <div className="text-sm font-black text-white">
+                  {optimizedResult.refinedTopic}
+                </div>
+              </div>
+
+              {/* 5 Cinematic Acts with Contextual Imagery Preview */}
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center justify-between">
+                  <span>Estrutura dos 5 Atos com Imagens Contextuais &amp; 3D</span>
+                  <span className="text-[11px] text-[#D4AF37] font-normal">
+                    Movimento Ken Burns Ativo
+                  </span>
+                </h4>
+
+                <div className="space-y-3">
+                  {optimizedResult.acts.map((act) => (
+                    <div
+                      key={act.actIndex}
+                      className="p-3.5 rounded-xl bg-[#090D16] border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center gap-3.5 hover:border-slate-700 transition-all"
+                    >
+                      {/* Image Thumbnail */}
+                      <div className="relative w-full sm:w-28 h-20 rounded-lg overflow-hidden shrink-0 border border-slate-700 bg-slate-900">
+                        <img
+                          src={act.imageUrl}
+                          alt={act.imagePrompt}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/80 text-[9px] font-black text-[#D4AF37]">
+                          ATO 0{act.actIndex}
+                        </div>
+                        {act.is3DRender && (
+                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-[#1C2541]/90 text-[8px] font-bold text-cyan-400 border border-cyan-500/30">
+                            Render 3D
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Act Spoken & Visual Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-[#1C2541] text-[#D4AF37] border border-[#D4AF37]/30">
+                            {act.badge}
+                          </span>
+                          <span className="text-xs font-bold text-white truncate">
+                            {act.headline}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-300 italic mb-1.5 line-clamp-2">
+                          "{act.spokenLine}"
+                        </p>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                          <span className="text-emerald-400 font-bold">{act.keyStat}</span>
+                          <span>•</span>
+                          <span className="truncate">{act.imagePrompt}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-[#090D16] border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-xs text-slate-400">
+                O roteiro será formatado e confirmado automaticamente com voz {voiceGender === 'male' ? 'masculina' : 'feminina'}.
+              </span>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setOptimizedModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors w-full sm:w-auto cursor-pointer"
+                >
+                  Descartar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmOptimizedScript}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#E0A96D] text-[#090D16] text-xs font-black uppercase tracking-wider shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>Aplicar Roteiro Otimizado</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
     </section>
   );
 };

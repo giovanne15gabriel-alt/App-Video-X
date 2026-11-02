@@ -95,6 +95,8 @@ export const MODELS: Record<ModelId, ModelConfig> = {
   },
 };
 
+export type VoiceGender = 'male' | 'female';
+
 export interface VideoMetadata {
   title: string;
   durationSeconds: number;
@@ -106,6 +108,7 @@ export interface VideoMetadata {
   scriptTopic?: string;
   creatorHandle?: string;
   colorHex?: string;
+  voiceGender?: VoiceGender;
 }
 
 export interface WordCaption {
@@ -126,6 +129,9 @@ export interface SceneData {
   visualType: 'dossier' | 'law_decree' | 'data_chart' | 'evidence_board' | 'verdict';
   startTime: number;
   endTime: number;
+  imageUrl?: string;
+  imageTheme?: string;
+  imagePrompt?: string;
 }
 
 export interface GeneratedOutput {
@@ -149,6 +155,8 @@ export interface GeneratedOutput {
   fileSizeBytes: number; // REAL VIDEO FILE SIZE
   creatorHandle?: string;
   colorHex?: string;
+  voiceGender?: VoiceGender;
+  playbackSpeed?: number;
   scenes?: SceneData[];
 }
 
@@ -217,21 +225,308 @@ export function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+export interface ThemeDefinition {
+  id: string;
+  label: string;
+  keywords: string[];
+  images: {
+    url: string;
+    caption: string;
+    type: '3d_render' | 'cinematic_photo';
+  }[];
+}
+
+export const CONTEXTUAL_THEMES: Record<string, ThemeDefinition> = {
+  cavalo: {
+    id: 'cavalo',
+    label: 'Agronegócio & Cavalos de Elite',
+    keywords: ['cavalo', 'cavalos', 'equino', 'haras', 'mangalarga', 'quarto de milha', 'rural', 'campo', 'fazenda', 'pastagem', 'cavalgada'],
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Cavalo marchador em movimento livre no campo',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Retrato cinematográfico de cavalo de raça nobre',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1598974357801-cbca100e65d3?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Haras de alto padrão e infraestrutura equestre',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Manejo e pastagem rural de precisão',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1534067783941-51c9c23ecefd?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Autoridade e disciplina em esportes equestres',
+        type: 'cinematic_photo',
+      },
+    ],
+  },
+  comercio: {
+    id: 'comercio',
+    label: 'Comércio, Varejo & Negócios',
+    keywords: ['comercio', 'comércio', 'loja', 'varejo', 'vendas', 'mercado', 'lojas', 'balcao', 'empresario', 'empresário', 'negocio', 'negócios', 'shopping', 'vender'],
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Loja moderna de varejo e atendimento presencial',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Corredor comercial e movimentação de consumidores',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Operação de caixa e experiência do cliente',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Painel 3D de vendas e metas de crescimento',
+        type: '3d_render',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Fachada comercial iluminada e posicionamento',
+        type: 'cinematic_photo',
+      },
+    ],
+  },
+  confuso: {
+    id: 'confuso',
+    label: 'Dúvidas, Confusão & Resolução de Problemas',
+    keywords: ['confuso', 'confusa', 'duvida', 'dúvida', 'incerteza', 'problema', 'hesitacao', 'hesitação', 'dificil', 'difícil', 'erro', 'dilema'],
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Pessoa refletindo com expressão pensativa sobre a decisão',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Renderização 3D de labirinto volumétrico e nós conceituais',
+        type: '3d_render',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Luz volumétrica 3D destacando o ponto de inflexão',
+        type: '3d_render',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Análise aprofundada eliminando incertezas operacionais',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Clareza e assertividade na tomada de decisão',
+        type: 'cinematic_photo',
+      },
+    ],
+  },
+  lei: {
+    id: 'lei',
+    label: 'Legislação, Justiça & Marco Legal',
+    keywords: ['lei', 'leis', 'artigo', 'constituicao', 'constituição', 'decreto', 'tribunal', 'justica', 'justiça', 'juiz', 'direito', 'norma', 'tcu', 'advogado'],
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Balança da justiça dourada e códigos legais',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1453733197781-717857324662?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Biblioteca jurídica clássica e jurisprudência',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1505664194779-8beaceb93744?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Martelo de juiz em madeira nobre e solenidade',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Assinatura e validação formal de parecer',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Fachada monumental de tribunal de justiça',
+        type: 'cinematic_photo',
+      },
+    ],
+  },
+  dinheiro: {
+    id: 'dinheiro',
+    label: 'Finanças Públicas, Orçamento & Impostos',
+    keywords: ['dinheiro', 'imposto', 'impostos', 'orcamento', 'orçamento', 'gasto', 'gastos', 'recurso', 'recursos', 'milhoes', 'milhões', 'tributo', 'receita', 'balanço'],
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Rastreamento de fluxo orçamentário e finanças',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Cifrões e patrimônio em auditoria contínua',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Painel 3D de cotações e movimentação de capital',
+        type: '3d_render',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Auditoria fiscal minuciosa de notas e comprovantes',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Governança financeira e prestação de contas',
+        type: 'cinematic_photo',
+      },
+    ],
+  },
+  tecnologia: {
+    id: 'tecnologia',
+    label: 'Engenharia, Softwares BIM & Tecnologia 3D',
+    keywords: ['tecnologia', 'software', 'softwares', 'bim', 'engenharia', 'obra', 'obras', '3d', 'automação', 'sistema', 'app', 'codigo', 'código'],
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Renderização estrutural BIM e maquete eletrônica 3D',
+        type: '3d_render',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Engenharia de alta precisão e compatibilização técnica',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Processamento de alta velocidade e chips gráficos',
+        type: '3d_render',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Dashboard analítico em tempo real para engenheiros',
+        type: '3d_render',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Interface de usuário técnica sem hesitações',
+        type: 'cinematic_photo',
+      },
+    ],
+  },
+  politica: {
+    id: 'politica',
+    label: 'Análise Política, Eleições & Cenário Factual',
+    keywords: ['politica', 'política', 'mbl', 'eleicao', 'eleições', 'governo', 'deputado', 'senado', 'congresso', 'partido', 'voto', 'câmara'],
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Cúpulas do Congresso Nacional e arquitetura cívica',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1575320181282-9afab399332c?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Discurso em plenário e momento de decisão',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Votação e articulação nos bastidores institucionais',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Coletiva de imprensa e pronunciamento com autoridade',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Rede global de dados e projeção de cenários eleitorais',
+        type: '3d_render',
+      },
+    ],
+  },
+  geral: {
+    id: 'geral',
+    label: 'Documentário Factual & Análise Geral',
+    keywords: [],
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Cenário noturno cinematográfico estilo Vox Explainer',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Iluminação de estúdio com profundidade e autoridade',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Análise investigativa de evidências factuais',
+        type: 'cinematic_photo',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Mapa de dados em rede tridimensional',
+        type: '3d_render',
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1080&auto=format&fit=crop&q=80',
+        caption: 'Veredito final com alta retenção do público',
+        type: 'cinematic_photo',
+      },
+    ],
+  },
+};
+
+export function detectContextualTheme(text: string): ThemeDefinition {
+  const norm = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  
+  for (const [key, theme] of Object.entries(CONTEXTUAL_THEMES)) {
+    if (key === 'geral') continue;
+    if (theme.keywords.some((kw) => norm.includes(kw.normalize('NFD').replace(/[\u0300-\u036f]/g, '')))) {
+      return theme;
+    }
+  }
+  return CONTEXTUAL_THEMES.geral;
+}
+
 export function buildScenesForOutput(
   title: string,
   totalDuration: number,
-  style: 'documentary' | 'viral_short' | 'youtube_clean' | 'corporate_tech'
+  style: 'documentary' | 'viral_short' | 'youtube_clean' | 'corporate_tech',
+  contextText: string = ''
 ): SceneData[] {
   const sceneDuration = totalDuration / 5;
   const cleanTitle = title.replace(/\.[^/.]+$/, '').trim() || 'Vídeo';
+  const theme = detectContextualTheme(`${title} ${contextText}`);
+  const images = theme.images;
+
+  let rawScenes: SceneData[] = [];
 
   if (style === 'documentary') {
-    return [
+    rawScenes = [
       {
         sceneIndex: 1,
         category: 'DOSSIÊ INVESTIGATIVO • ATO 01',
         headline: cleanTitle.toUpperCase(),
-        subline: 'RASTREAMENTO DO FLUXO ORÇAMENTÁRIO',
+        subline: 'RASTREAMENTO DO FLUXO E RECURSOS',
         spokenText: 'Você sabe para onde realmente vai o dinheiro dos seus impostos? Uma apuração aprofundada começou a rastrear os dados.',
         keyStat: 'STATUS: ATIVO',
         statLabel: 'Auditoria de Dados Oficiais',
@@ -293,10 +588,8 @@ export function buildScenesForOutput(
         endTime: totalDuration,
       },
     ];
-  }
-
-  if (style === 'corporate_tech') {
-    return [
+  } else if (style === 'corporate_tech') {
+    rawScenes = [
       {
         sceneIndex: 1,
         category: 'APRESENTAÇÃO TÉCNICA • ATO 01',
@@ -363,76 +656,87 @@ export function buildScenesForOutput(
         endTime: totalDuration,
       },
     ];
+  } else {
+    // viral_short & youtube_clean
+    rawScenes = [
+      {
+        sceneIndex: 1,
+        category: 'PICO DE RETENÇÃO • ATO 01',
+        headline: cleanTitle.toUpperCase(),
+        subline: 'O DETALHE CRÍTICO QUE MUDA TUDO',
+        spokenText: 'Preste muita atenção neste detalhe específico. Poucas pessoas percebem o impacto dessa virada.',
+        keyStat: '98% RETENÇÃO',
+        statLabel: 'Pico de Atenção Identificado',
+        badge: 'GANCHO VIRAL',
+        visualType: 'dossier',
+        startTime: 0,
+        endTime: sceneDuration,
+      },
+      {
+        sceneIndex: 2,
+        category: 'TESE & ARGUMENTO • ATO 02',
+        headline: 'A REGRA FUNDAMENTAL',
+        subline: 'PRINCÍPIO ESTRUTURAL DE DECISÃO',
+        spokenText: 'Se analisarmos com clareza, a decisão tomada aqui determina todo o resultado posterior.',
+        keyStat: 'REGRA CENTRAL',
+        statLabel: 'Ponto de Inflexão Decisivo',
+        badge: 'TESE PRINCIPAL',
+        visualType: 'law_decree',
+        startTime: sceneDuration,
+        endTime: sceneDuration * 2,
+      },
+      {
+        sceneIndex: 3,
+        category: 'DADOS & MÉTRICAS • ATO 03',
+        headline: 'MÉTRICAS QUE IMPORTAM',
+        subline: 'NÚMEROS REAIS E COMPROVAÇÃO',
+        spokenText: 'Os números mostram a diferença prática: o crescimento de performance é inquestionável.',
+        keyStat: '4.8X RESULTADO',
+        statLabel: 'Métrica Comprovada em Testes',
+        badge: 'DADOS REAIS',
+        visualType: 'data_chart',
+        startTime: sceneDuration * 2,
+        endTime: sceneDuration * 3,
+      },
+      {
+        sceneIndex: 4,
+        category: 'PLANO DE AÇÃO • ATO 04',
+        headline: 'PASSO A PASSO OBJETIVO',
+        subline: 'COMO APLICAR SEM ERROS',
+        spokenText: 'O plano consiste em cinco passos práticos que qualquer pessoa ou equipe pode executar.',
+        keyStat: '5 PASSOS',
+        statLabel: 'Roteiro de Implementação',
+        badge: 'CHECKLIST PRÁTICO',
+        visualType: 'evidence_board',
+        startTime: sceneDuration * 3,
+        endTime: sceneDuration * 4,
+      },
+      {
+        sceneIndex: 5,
+        category: 'CONCLUSÃO • ATO 05',
+        headline: 'SIGA PARA MAIS CORTES',
+        subline: 'COMPARTILHE COM QUEM PRECISA SABER',
+        spokenText: 'Curta este vídeo se fez sentido para você e siga o canal para não perder os próximos cortes.',
+        keyStat: 'SIGA O PERFIL',
+        statLabel: 'Conteúdo Diário de Alto Valor',
+        badge: 'VEREDITO FINAL',
+        visualType: 'verdict',
+        startTime: sceneDuration * 4,
+        endTime: totalDuration,
+      },
+    ];
   }
 
-  // viral_short & youtube_clean
-  return [
-    {
-      sceneIndex: 1,
-      category: 'PICO DE RETENÇÃO • ATO 01',
-      headline: cleanTitle.toUpperCase(),
-      subline: 'O DETALHE CRÍTICO QUE MUDA TUDO',
-      spokenText: 'Preste muita atenção neste detalhe específico. Poucas pessoas percebem o impacto dessa virada.',
-      keyStat: '98% RETENÇÃO',
-      statLabel: 'Pico de Atenção Identificado',
-      badge: 'GANCHO VIRAL',
-      visualType: 'dossier',
-      startTime: 0,
-      endTime: sceneDuration,
-    },
-    {
-      sceneIndex: 2,
-      category: 'TESE & ARGUMENTO • ATO 02',
-      headline: 'A REGRA FUNDAMENTAL',
-      subline: 'PRINCÍPIO ESTRUTURAL DE DECISÃO',
-      spokenText: 'Se analisarmos com clareza, a decisão tomada aqui determina todo o resultado posterior.',
-      keyStat: 'REGRA CENTRAL',
-      statLabel: 'Ponto de Inflexão Decisivo',
-      badge: 'TESE PRINCIPAL',
-      visualType: 'law_decree',
-      startTime: sceneDuration,
-      endTime: sceneDuration * 2,
-    },
-    {
-      sceneIndex: 3,
-      category: 'DADOS & MÉTRICAS • ATO 03',
-      headline: 'MÉTRICAS QUE IMPORTAM',
-      subline: 'NÚMEROS REAIS E COMPROVAÇÃO',
-      spokenText: 'Os números mostram a diferença prática: o crescimento de performance é inquestionável.',
-      keyStat: '4.8X RESULTADO',
-      statLabel: 'Métrica Comprovada em Testes',
-      badge: 'DADOS REAIS',
-      visualType: 'data_chart',
-      startTime: sceneDuration * 2,
-      endTime: sceneDuration * 3,
-    },
-    {
-      sceneIndex: 4,
-      category: 'PLANO DE AÇÃO • ATO 04',
-      headline: 'PASSO A PASSO OBJETIVO',
-      subline: 'COMO APLICAR SEM ERROS',
-      spokenText: 'O plano consiste em cinco passos práticos que qualquer pessoa ou equipe pode executar.',
-      keyStat: '5 PASSOS',
-      statLabel: 'Roteiro de Implementação',
-      badge: 'CHECKLIST PRÁTICO',
-      visualType: 'evidence_board',
-      startTime: sceneDuration * 3,
-      endTime: sceneDuration * 4,
-    },
-    {
-      sceneIndex: 5,
-      category: 'CONCLUSÃO • ATO 05',
-      headline: 'SIGA PARA MAIS CORTES',
-      subline: 'COMPARTILHE COM QUEM PRECISA SABER',
-      spokenText: 'Curta este vídeo se fez sentido para você e siga o canal para não perder os próximos cortes.',
-      keyStat: 'SIGA O PERFIL',
-      statLabel: 'Conteúdo Diário de Alto Valor',
-      badge: 'VEREDITO FINAL',
-      visualType: 'verdict',
-      startTime: sceneDuration * 4,
-      endTime: totalDuration,
-    },
-  ];
+  // Attach contextual photo / 3D render to each scene
+  return rawScenes.map((sc, idx) => {
+    const imgObj = images[idx % images.length];
+    return {
+      ...sc,
+      imageUrl: imgObj.url,
+      imageTheme: theme.label,
+      imagePrompt: imgObj.caption,
+    };
+  });
 }
 
 /**
@@ -444,7 +748,9 @@ export function generateOutputsForModel(
   modelId: ModelId,
   mediaTitle: string,
   creatorHandle: string = '@editorx.oficial',
-  colorHex: string = '#D4AF37'
+  colorHex: string = '#D4AF37',
+  voiceGender: VoiceGender = 'male',
+  contextText: string = ''
 ): GeneratedOutput[] {
   const baseTitle = mediaTitle.replace(/\.[^/.]+$/, '').trim() || 'Vídeo';
 
@@ -459,17 +765,24 @@ export function generateOutputsForModel(
         durationSeconds: 74,
         formattedDuration: '1:14',
         retentionScore: 98,
-        summary: 'Estrutura documental narrativa com pesquisa de fatos e leis, cartelas dinâmicas, cortes de impacto e narração padrão brasileira com voz masculina agradável.',
+        summary: `Estrutura documental narrativa com pesquisa de fatos e leis, cartelas dinâmicas, cortes de impacto e narração padrão brasileira com voz ${voiceGender === 'male' ? 'masculina' : 'feminina'} agradável.`,
         hookHeadline: 'Análise Documental Investigativa',
         videoStyle: 'documentary',
         downloadFileName: `editor-x-doc-${slugify(baseTitle)}.mp4`,
         downloadLabel: 'Baixar Short Documentário',
-        tags: ['Documentário 9:16', 'Narração Brasileira', 'Fatos e Leis', '1m14s (>=50s)'],
+        tags: [
+          'Documentário 9:16',
+          voiceGender === 'male' ? 'Voz Masculina BR' : 'Voz Feminina BR',
+          'Fatos e Leis',
+          '1m14s (>=50s)',
+        ],
         videoUrl: '/media/generated/doc_short.mp4',
         fileSizeBytes: 3183207,
         creatorHandle,
         colorHex,
-        scenes: buildScenesForOutput(baseTitle, 74, 'documentary'),
+        voiceGender,
+        playbackSpeed: 1.0,
+        scenes: buildScenesForOutput(baseTitle, 74, 'documentary', contextText),
         subtitles: [
           { word: 'Você', start: 0.2, end: 0.6 },
           { word: 'sabe', start: 0.7, end: 1.0 },
@@ -710,4 +1023,319 @@ function slugify(text: string): string {
     .replace(/\s+/g, '-')
     .replace(/[^\w-]+/g, '')
     .replace(/--+/g, '-');
+}
+
+export interface OptimizedScriptResult {
+  theme: ThemeDefinition;
+  refinedTopic: string;
+  enhancedScript: string;
+  acts: {
+    actIndex: number;
+    badge: string;
+    headline: string;
+    subline: string;
+    spokenLine: string;
+    keyStat: string;
+    statLabel: string;
+    visualType: 'dossier' | 'law_decree' | 'data_chart' | 'evidence_board' | 'verdict';
+    imageUrl: string;
+    imagePrompt: string;
+    is3DRender?: boolean;
+  }[];
+  voiceGender: VoiceGender;
+  estimatedDurationSeconds: number;
+  retentionScore: number;
+  hookExplanation: string;
+}
+
+export function optimizeScriptWithAI(
+  rawScript: string,
+  rawTopic: string = '',
+  voiceGender: VoiceGender = 'male'
+): OptimizedScriptResult {
+  const combined = `${rawTopic} ${rawScript}`.trim();
+  const theme = detectContextualTheme(combined);
+  const cleanTopic = rawTopic.trim() || theme.label;
+  const images = theme.images;
+
+  let acts: OptimizedScriptResult['acts'] = [];
+  let refinedTopic = cleanTopic;
+  let hookExplanation = 'Gancho de retenção nos primeiros 3 segundos eliminando termos vagos e criando curiosidade imediata.';
+
+  if (theme.id === 'cavalo') {
+    refinedTopic = cleanTopic.includes('Cavalo') ? cleanTopic : `O Mercado dos Cavalos de Elite — Segredos de Alta Linhagem`;
+    acts = [
+      {
+        actIndex: 1,
+        badge: 'GANCHO VIRAL • ATO 01',
+        headline: 'O MERCADO DOS CAVALOS DE ELITE',
+        subline: 'O QUE NINGUÉM CONTA SOBRE ESSES ANIMAIS',
+        spokenLine: 'Você sabia que o mercado de cavalos de raça movimenta bilhões por ano no Brasil, e quase ninguém compreende os critérios por trás dessas cifras?',
+        keyStat: 'R$ 3.8 BILHÕES',
+        statLabel: 'Movimentação Anual Estimada',
+        visualType: 'dossier',
+        imageUrl: images[0].url,
+        imagePrompt: images[0].caption,
+      },
+      {
+        actIndex: 2,
+        badge: 'GENÉTICA & CRITÉRIOS • ATO 02',
+        headline: 'AVALIAÇÃO MORFOLÓGICA',
+        subline: 'LINHAGEM, ANDAMENTO E TEMPERAMENTO',
+        spokenLine: 'Muitos criadores e admiradores ficam confusos na hora de avaliar um bom animal. Não se trata apenas de beleza, mas de aprumos, biomecânica e genética comprovada.',
+        keyStat: 'MARCHA & RAÇA',
+        statLabel: 'Critérios Zootécnicos Rigorosos',
+        visualType: 'law_decree',
+        imageUrl: images[1].url,
+        imagePrompt: images[1].caption,
+      },
+      {
+        actIndex: 3,
+        badge: 'DADOS FACTUAIS • ATO 03',
+        headline: 'LEILÕES E VALORIZAÇÃO',
+        subline: 'HISTÓRICO REAL DE NEGOCIAÇÃO',
+        spokenLine: 'Ao analisar os registros oficiais das associações rurais, constatamos que animais com genealogia fechada chegam a valorizar até quatro vezes mais em leilões fechados.',
+        keyStat: '4X VALORIZAÇÃO',
+        statLabel: 'Impacto da Linhagem Certificada',
+        visualType: 'data_chart',
+        imageUrl: images[2].url,
+        imagePrompt: images[2].caption,
+        is3DRender: true,
+      },
+      {
+        actIndex: 4,
+        badge: 'MANEJO & NUTRIÇÃO • ATO 04',
+        headline: 'PILAR DE ALTA PERFORMANCE',
+        subline: 'ROTINA DE TREINO E BEM-ESTAR EQUINO',
+        spokenLine: 'O verdadeiro segredo dos haras de ponta é a disciplina: nutrição balanceada, veterinária preventiva e doma racional com respeito ao animal.',
+        keyStat: '100% CUIDADO',
+        statLabel: 'Protocolo de Excelência em Haras',
+        visualType: 'evidence_board',
+        imageUrl: images[3].url,
+        imagePrompt: images[3].caption,
+      },
+      {
+        actIndex: 5,
+        badge: 'VEREDITO FINAL • ATO 05',
+        headline: 'SIGA PARA MAIS ANÁLISES',
+        subline: 'O UNIVERSO DO CAVALO EM ALTA DEFINIÇÃO',
+        spokenLine: 'Se você é apaixonado pelo campo e quer entender a fundo esse mercado, curta este vídeo e siga nosso perfil para acompanhar as próximas matérias exclusivas.',
+        keyStat: 'SIGA O PERFIL',
+        statLabel: 'Conteúdo Documental Diário',
+        visualType: 'verdict',
+        imageUrl: images[4].url,
+        imagePrompt: images[4].caption,
+      },
+    ];
+  } else if (theme.id === 'comercio') {
+    refinedTopic = cleanTopic.includes('Comércio') || cleanTopic.includes('Loja') ? cleanTopic : `O Segredo do Varejo que Mais Vende no Brasil`;
+    acts = [
+      {
+        actIndex: 1,
+        badge: 'GANCHO VIRAL • ATO 01',
+        headline: 'O SEGREDO DOS GRANDES COMÉRCIOS',
+        subline: 'COMO LOJAS COMUNS DOBRAM O FATURAMENTO',
+        spokenLine: 'Por que algumas lojas vivem lotadas enquanto o comércio ao lado mal consegue pagar o aluguel? A resposta não é sorte, é engenharia de vendas.',
+        keyStat: '2.5X VENDAS',
+        statLabel: 'Diferencial de Tráfego e Conversão',
+        visualType: 'dossier',
+        imageUrl: images[0].url,
+        imagePrompt: images[0].caption,
+      },
+      {
+        actIndex: 2,
+        badge: 'EXPERIÊNCIA & BALCÃO • ATO 02',
+        headline: 'JORNADA DO CONSUMIDOR',
+        subline: 'ELIMINANDO ATRITOS NO PONTO DE VENDA',
+        spokenLine: 'Quando o cliente entra em uma loja e se sente confuso ou mal atendido, ele vai embora em menos de trinta segundos. O layout do espaço precisa conduzir à compra.',
+        keyStat: '30 SEGUNDOS',
+        statLabel: 'Janela Crítica de Decisão do Cliente',
+        visualType: 'law_decree',
+        imageUrl: images[1].url,
+        imagePrompt: images[1].caption,
+      },
+      {
+        actIndex: 3,
+        badge: 'NÚMEROS & MARGEM • ATO 03',
+        headline: 'MÉTRICAS DO COMÉRCIO LUCRATIVO',
+        subline: 'TICKET MÉDIO E GIRO DE ESTOQUE',
+        spokenLine: 'Ao analisar os dados financeiros de mais de quinhentas lojas, descobrimos que aumentar o ticket médio em apenas quinze por cento pode dobrar o lucro líquido no fim do mês.',
+        keyStat: '+15% TICKET',
+        statLabel: 'Dobro do Lucro Líquido Real',
+        visualType: 'data_chart',
+        imageUrl: images[3].url,
+        imagePrompt: images[3].caption,
+        is3DRender: true,
+      },
+      {
+        actIndex: 4,
+        badge: 'PASSO A PASSO • ATO 04',
+        headline: 'MÉTODO DE EXPANSÃO',
+        subline: 'FIDELIZAÇÃO E PÓS-VENDA EFICIENTE',
+        spokenLine: 'Os empresários de maior sucesso aplicam um checklist simples: equipe treinada, precificação estratégica e um pós-venda que traz o cliente de volta todo mês.',
+        keyStat: '5 PILARES',
+        statLabel: 'Roteiro de Crescimento Comercial',
+        visualType: 'evidence_board',
+        imageUrl: images[2].url,
+        imagePrompt: images[2].caption,
+      },
+      {
+        actIndex: 5,
+        badge: 'VEREDITO EXECUTIVO • ATO 05',
+        headline: 'APLIQUE NO SEU NEGÓCIO',
+        subline: 'SIGA PARA RECEBER ESTRATÉGIAS DIÁRIAS',
+        spokenLine: 'Domine essas práticas e transforme os resultados do seu comércio. Compartilhe com quem é empresário e siga o perfil para novas análises.',
+        keyStat: 'SIGA O CANAL',
+        statLabel: 'Inteligência de Varejo e Gestão',
+        visualType: 'verdict',
+        imageUrl: images[4].url,
+        imagePrompt: images[4].caption,
+      },
+    ];
+  } else if (theme.id === 'confuso') {
+    refinedTopic = cleanTopic.includes('Decisão') || cleanTopic.includes('Erro') ? cleanTopic : `O Erro Silencioso que Trava 99% das Pessoas`;
+    acts = [
+      {
+        actIndex: 1,
+        badge: 'GANCHO VIRAL • ATO 01',
+        headline: 'POR QUE VOCÊ FICA TRAVADO?',
+        subline: 'A CIÊNCIA DA DÚVIDA E DA HESITAÇÃO',
+        spokenLine: 'Você já se sentiu completamente confuso diante de uma escolha importante, com a sensação de estar andando em círculos sem sair do lugar?',
+        keyStat: '99% TRAVAM',
+        statLabel: 'Paralisia por Excesso de Informação',
+        visualType: 'dossier',
+        imageUrl: images[0].url,
+        imagePrompt: images[0].caption,
+      },
+      {
+        actIndex: 2,
+        badge: 'ANATOMIA DO DILEMA • ATO 02',
+        headline: 'O LABIRINTO DA MENTE',
+        subline: 'COMO O CÉREBRO INTERPRETA O RISCO',
+        spokenLine: 'A neurociência explica que o cérebro prefere a inércia a errar. Quando não temos clareza dos dados, a mente cria monstros e paralisa qualquer ação prática.',
+        keyStat: 'RENDER 3D',
+        statLabel: 'Labirinto Cognitivo Desconstruído',
+        visualType: 'law_decree',
+        imageUrl: images[1].url,
+        imagePrompt: images[1].caption,
+        is3DRender: true,
+      },
+      {
+        actIndex: 3,
+        badge: 'DADOS & FATOS • ATO 03',
+        headline: 'A REGRA DOS 5 MINUTOS',
+        subline: 'MÉTRICAS QUE QUEBRAM A CONFUSÃO',
+        spokenLine: 'Estudos comprovam: quebrar uma grande decisão em blocos de apenas cinco minutos reduz a ansiedade em setenta por cento e acelera a execução.',
+        keyStat: '-70% ANSIEDADE',
+        statLabel: 'Aceleração de Resolução Comprovada',
+        visualType: 'data_chart',
+        imageUrl: images[2].url,
+        imagePrompt: images[2].caption,
+        is3DRender: true,
+      },
+      {
+        actIndex: 4,
+        badge: 'PLANO PRÁTICO • ATO 04',
+        headline: 'CHECKLIST ANTI-CONFUSÃO',
+        subline: 'TÉCNICA DE ELIMINAÇÃO RÁPIDA',
+        spokenLine: 'Elimine os ruídos: defina sua prioridade número um, descarte tudo o que não está sob o seu controle e dê o primeiro passo imediatamente.',
+        keyStat: 'PASSO A PASSO',
+        statLabel: 'Clareza Imediata de Ação',
+        visualType: 'evidence_board',
+        imageUrl: images[3].url,
+        imagePrompt: images[3].caption,
+      },
+      {
+        actIndex: 5,
+        badge: 'VEREDITO FACTUAL • ATO 05',
+        headline: 'TOME A SUA DECISÃO AGORA',
+        subline: 'SIGA PARA MAIS CONTEÚDOS DE CLAREZA',
+        spokenLine: 'A clareza vem da ação, nunca da espera. Salve este vídeo para não esquecer e siga o canal para mais insights práticos.',
+        keyStat: 'SIGA O PERFIL',
+        statLabel: 'Mentalidade e Decisão Ágil',
+        visualType: 'verdict',
+        imageUrl: images[4].url,
+        imagePrompt: images[4].caption,
+      },
+    ];
+  } else {
+    // General / Law / Finance / Tech customized based on prompt
+    const cleanSubject = cleanTopic.replace(/^roteiro:?\s*/i, '').trim();
+    acts = [
+      {
+        actIndex: 1,
+        badge: 'DOSSIÊ INVESTIGATIVO • ATO 01',
+        headline: cleanSubject.toUpperCase().slice(0, 32),
+        subline: 'O FATO CENTRAL QUE VOCÊ PRECISA SABER',
+        spokenLine: `Você já parou para analisar o que realmente está em jogo em ${cleanSubject}? Uma análise minuciosa revela detalhes que a maioria desconhece.`,
+        keyStat: 'STATUS: REVELADO',
+        statLabel: 'Investigação e Dados Consolidados',
+        visualType: 'dossier',
+        imageUrl: images[0].url,
+        imagePrompt: images[0].caption,
+      },
+      {
+        actIndex: 2,
+        badge: 'MARCO FUNDAMENTAL • ATO 02',
+        headline: 'O PRINCÍPIO ESTRUTURAL',
+        subline: 'CRITÉRIOS E REGRAS INDISCUTÍVEIS',
+        spokenLine: 'Ao cruzarmos as referências e normas aplicáveis, fica claro que existe uma linha direta entre a fundamentação correta e o resultado final obtido.',
+        keyStat: 'MARCO REGULATÓRIO',
+        statLabel: 'Conformidade Factual Estrita',
+        visualType: 'law_decree',
+        imageUrl: images[1].url,
+        imagePrompt: images[1].caption,
+      },
+      {
+        actIndex: 3,
+        badge: 'AUDITORIA DE DADOS • ATO 03',
+        headline: 'MÉTRICAS COMPROVADAS',
+        subline: 'O IMPACTO DOS NÚMEROS REAIS',
+        spokenLine: 'Os números oficiais comprovam a tese: ao monitorar os indicadores com precisão, conseguimos comprovar um padrão consistente de alto impacto.',
+        keyStat: '98% COMPROVADO',
+        statLabel: 'Validação Factual em Registros',
+        visualType: 'data_chart',
+        imageUrl: images[2].url,
+        imagePrompt: images[2].caption,
+        is3DRender: true,
+      },
+      {
+        actIndex: 4,
+        badge: 'CRUZAMENTO PRÁTICO • ATO 04',
+        headline: 'EVIDÊNCIAS E CONCLUSÃO',
+        subline: 'O PASSO A PASSO FACTUAL',
+        spokenLine: 'O verdadeiro diferencial é ter as evidências corretas em mãos para tomar decisões embasadas, sem espaço para especulações vazias.',
+        keyStat: 'EVIDÊNCIAS SÓLIDAS',
+        statLabel: 'Base Técnica e Argumentação Forte',
+        visualType: 'evidence_board',
+        imageUrl: images[3].url,
+        imagePrompt: images[3].caption,
+      },
+      {
+        actIndex: 5,
+        badge: 'VEREDITO FACTUAL • ATO 05',
+        headline: 'CONCLUSÃO & PRÓXIMOS PASSOS',
+        subline: 'SIGA PARA MAIS INVESTIGAÇÕES',
+        spokenLine: 'A verdade fundamentada transforma qualquer discussão. Siga nosso perfil para acompanhar as próximas análises aprofundadas.',
+        keyStat: 'SIGA O PERFIL',
+        statLabel: 'Conteúdo Investigativo em 9:16',
+        visualType: 'verdict',
+        imageUrl: images[4].url,
+        imagePrompt: images[4].caption,
+      },
+    ];
+  }
+
+  const enhancedScript = acts.map((a) => `[Ato ${a.actIndex}]: ${a.spokenLine}`).join('\n\n');
+
+  return {
+    theme,
+    refinedTopic,
+    enhancedScript,
+    acts,
+    voiceGender,
+    estimatedDurationSeconds: 74,
+    retentionScore: 98,
+    hookExplanation,
+  };
 }

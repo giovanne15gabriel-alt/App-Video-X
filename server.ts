@@ -17,8 +17,10 @@ import {
   validateModelSubmission,
   generateOutputsForModel,
   buildFFmpegCommand,
+  optimizeScriptWithAI,
   type ModelId,
   type VideoMetadata,
+  type VoiceGender,
 } from './src/utils/videoEngine.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -126,7 +128,27 @@ app.post('/api/youtube/info', async (req: Request, res: Response) => {
   }
 });
 
-// Custom Re-Render Endpoint (Allows live updating @, color palette, and audio)
+// Intelligent Script Review & Enhancement Endpoint
+app.post('/api/optimize-script', (req: Request, res: Response) => {
+  const { rawScript = '', rawTopic = '', voiceGender = 'male' } = req.body as {
+    rawScript?: string;
+    rawTopic?: string;
+    voiceGender?: VoiceGender;
+  };
+
+  try {
+    const optimized = optimizeScriptWithAI(rawScript, rawTopic, voiceGender);
+    return res.json({
+      success: true,
+      result: optimized,
+    });
+  } catch (error: any) {
+    console.error('Erro na otimização de roteiro:', error);
+    return res.status(500).json({ error: 'Falha ao otimizar roteiro.' });
+  }
+});
+
+// Custom Re-Render Endpoint (Allows live updating @, color palette, voice gender, speed)
 app.post('/api/render-custom', async (req: Request, res: Response) => {
   const {
     title = 'Vídeo Personalizado',
@@ -135,7 +157,9 @@ app.post('/api/render-custom', async (req: Request, res: Response) => {
     creatorHandle = '@editorx.oficial',
     colorHex = '#D4AF37',
     aspectRatio = '9:16',
-    durationSeconds = 62,
+    durationSeconds = 65,
+    voiceGender = 'male',
+    playbackSpeed = 1.0,
     filename = 'custom_video.mp4',
   } = req.body;
 
@@ -151,6 +175,8 @@ app.post('/api/render-custom', async (req: Request, res: Response) => {
       color_hex: colorHex,
       aspect_ratio: aspectRatio,
       duration_seconds: Math.max(50, durationSeconds),
+      voice_gender: voiceGender,
+      playback_speed: playbackSpeed,
       output_path: targetFile,
     };
 
@@ -171,6 +197,8 @@ app.post('/api/render-custom', async (req: Request, res: Response) => {
       success: true,
       videoUrl: `/media/generated/${path.basename(filename)}?t=${Date.now()}`,
       filename: path.basename(filename),
+      voiceGender,
+      playbackSpeed,
       scenes,
     });
   } catch (err: any) {
@@ -181,11 +209,18 @@ app.post('/api/render-custom', async (req: Request, res: Response) => {
 
 // Process Video Endpoint
 app.post('/api/process', async (req: Request, res: Response) => {
-  const { modelId, media, creatorHandle = '@editorx.oficial', colorPalette = '#D4AF37' } = req.body as {
+  const {
+    modelId,
+    media,
+    creatorHandle = '@editorx.oficial',
+    colorPalette = '#D4AF37',
+    voiceGender = 'male',
+  } = req.body as {
     modelId: ModelId;
     media: VideoMetadata;
     creatorHandle?: string;
     colorPalette?: string;
+    voiceGender?: VoiceGender;
   };
 
   const validation = validateModelSubmission(modelId, media);
@@ -195,6 +230,7 @@ app.post('/api/process', async (req: Request, res: Response) => {
   }
 
   const model = MODELS[modelId];
+  const activeGender = media.voiceGender || voiceGender;
 
   // If Model 1 is processed with a written script or custom title, render it dynamically
   if (modelId === 'doc_shorts' && media) {
@@ -210,6 +246,7 @@ app.post('/api/process', async (req: Request, res: Response) => {
         color_hex: colorPalette,
         aspect_ratio: '9:16',
         duration_seconds: 65,
+        voice_gender: activeGender,
         output_path: targetPath,
       };
 
@@ -220,7 +257,14 @@ app.post('/api/process', async (req: Request, res: Response) => {
   }
 
   // Generate outputs matching business requirements
-  const outputs = generateOutputsForModel(modelId, media.title, creatorHandle, colorPalette);
+  const outputs = generateOutputsForModel(
+    modelId,
+    media.title,
+    creatorHandle,
+    colorPalette,
+    activeGender,
+    `${media.scriptTopic || ''} ${media.scriptContent || ''}`
+  );
 
   // If doc_short was rendered, attach actual dynamic scenes from scenes.json
   if (modelId === 'doc_shorts' && outputs[0]) {

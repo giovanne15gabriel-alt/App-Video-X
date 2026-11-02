@@ -17,6 +17,9 @@ import {
   Clock,
   Layers,
   ZoomIn,
+  Gauge,
+  User,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   GeneratedOutput,
@@ -25,6 +28,7 @@ import {
   formatBytes,
   buildScenesForOutput,
   SceneData,
+  VoiceGender,
 } from '../utils/videoEngine';
 import confetti from 'canvas-confetti';
 
@@ -52,6 +56,8 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
   const [studioHandle, setStudioHandle] = useState(output?.creatorHandle || '@editorx.oficial');
   const [studioColorHex, setStudioColorHex] = useState(output?.colorHex || '#D4AF37');
   const [zoomLevel, setZoomLevel] = useState<'1.0x' | '1.15x' | '1.25x'>('1.15x');
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(output?.playbackSpeed || 1.0);
+  const [studioVoiceGender, setStudioVoiceGender] = useState<VoiceGender>(output?.voiceGender || 'male');
   const [musicVol, setMusicVol] = useState<'low' | 'medium' | 'off'>('low');
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -60,8 +66,11 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
     if (output) {
       setStudioHandle(output.creatorHandle || '@editorx.oficial');
       setStudioColorHex(output.colorHex || '#D4AF37');
+      setPlaybackSpeed(output.playbackSpeed || 1.0);
+      setStudioVoiceGender(output.voiceGender || 'male');
       if (videoRef.current) {
         videoRef.current.currentTime = 0;
+        videoRef.current.playbackRate = output.playbackSpeed || 1.0;
         videoRef.current.play().catch(() => setIsPlaying(false));
       }
     }
@@ -107,7 +116,14 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
     }
   };
 
-  // Re-render video with new @ and color palette
+  const handlePlaybackSpeedChange = (speed: number) => {
+    setPlaybackSpeed(speed);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
+  };
+
+  // Re-render video with new @, voice gender, playback speed and color palette
   const handleReRender = async () => {
     setIsReRendering(true);
 
@@ -123,17 +139,22 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
           colorHex: studioColorHex,
           aspectRatio: output.aspectRatio,
           durationSeconds: output.durationSeconds,
+          voiceGender: studioVoiceGender,
+          playbackSpeed,
           filename: output.downloadFileName,
         }),
       });
 
       const data = await res.json();
       if (data.success && onUpdateOutput) {
-        const updated = {
+        const updated: GeneratedOutput = {
           ...output,
           creatorHandle: studioHandle,
           colorHex: studioColorHex,
-          videoUrl: `${output.videoUrl}?t=${Date.now()}`,
+          voiceGender: studioVoiceGender,
+          playbackSpeed,
+          videoUrl: `${output.videoUrl.split('?')[0]}?t=${Date.now()}`,
+          scenes: data.scenes || output.scenes,
         };
         onUpdateOutput(updated);
       }
@@ -480,11 +501,40 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
                 </div>
               </div>
 
+              {/* Playback Speed Setting (Requested by User) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                    <Gauge className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    Velocidade de Reprodução
+                  </label>
+                  <span className="text-[10px] font-mono text-[#D4AF37] font-bold">
+                    {playbackSpeed}x
+                  </span>
+                </div>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {[0.75, 1.0, 1.25, 1.5, 2.0].map((spd) => (
+                    <button
+                      key={spd}
+                      type="button"
+                      onClick={() => handlePlaybackSpeedChange(spd)}
+                      className={`py-1.5 px-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer text-center ${
+                        playbackSpeed === spd
+                          ? 'bg-[#1C2541] border-[#D4AF37] text-white shadow font-black'
+                          : 'bg-[#090D16] border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {spd === 1.0 ? '1.0x' : `${spd}x`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Dynamic Zoom Setting */}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1 flex items-center gap-1.5">
                   <ZoomIn className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  Zoom & Enquadramento Dinâmico
+                  Zoom &amp; Enquadramento Dinâmico
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {(['1.0x', '1.15x', '1.25x'] as const).map((z) => (
@@ -494,13 +544,47 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
                       onClick={() => setZoomLevel(z)}
                       className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                         zoomLevel === z
-                          ? 'bg-[#1C2541] border-[#D4AF37] text-white'
-                          : 'bg-[#090D16] border-slate-800 text-slate-400'
+                          ? 'bg-[#1C2541] border-[#D4AF37] text-white shadow'
+                          : 'bg-[#090D16] border-slate-800 text-slate-400 hover:text-white'
                       }`}
                     >
                       {z}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Voice Gender Setting (Masculina vs Feminina) */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  Narração Brasileira (Voz Natural)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStudioVoiceGender('male')}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      studioVoiceGender === 'male'
+                        ? 'bg-[#1C2541] border-[#D4AF37] text-white shadow'
+                        : 'bg-[#090D16] border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span>👨 Masculina</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStudioVoiceGender('female')}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      studioVoiceGender === 'female'
+                        ? 'bg-[#1C2541] border-[#D4AF37] text-white shadow'
+                        : 'bg-[#090D16] border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span>👩 Feminina</span>
+                  </button>
                 </div>
               </div>
 
@@ -523,7 +607,7 @@ export const InteractiveVideoStudio: React.FC<InteractiveVideoStudioProps> = ({
                       className={`py-1.5 px-2 rounded-lg text-[10px] font-semibold border transition-all cursor-pointer ${
                         musicVol === m.id
                           ? 'bg-[#1C2541] border-[#D4AF37] text-white'
-                          : 'bg-[#090D16] border-slate-800 text-slate-400'
+                          : 'bg-[#090D16] border-slate-800 text-slate-400 hover:text-white'
                       }`}
                     >
                       {m.label}

@@ -35,8 +35,16 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(output?.playbackSpeed || 1.0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const handleSpeedChange = (spd: number) => {
+    setPlaybackSpeed(spd);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = spd;
+    }
+  };
 
   useEffect(() => {
     if (output && videoRef.current) {
@@ -256,7 +264,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
           </div>
 
           {/* Player Controls Bar */}
-          <div className="w-full max-w-2xl mt-4 flex items-center justify-between gap-4 px-2">
+          <div className="w-full max-w-2xl mt-4 flex flex-wrap items-center justify-between gap-3 px-2">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -271,6 +279,25 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
               </span>
             </div>
 
+            {/* Playback Speed Quick Buttons (0.75x, 1x, 1.25x, 1.5x, 2x) */}
+            <div className="flex items-center gap-1 bg-[#1C2541]/70 p-1 rounded-xl border border-slate-700/60">
+              <span className="text-[10px] font-bold text-slate-400 px-1.5 hidden sm:inline">Velocidade:</span>
+              {[0.75, 1.0, 1.25, 1.5, 2.0].map((spd) => (
+                <button
+                  key={spd}
+                  type="button"
+                  onClick={() => handleSpeedChange(spd)}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                    playbackSpeed === spd
+                      ? 'bg-[#D4AF37] text-[#090D16] shadow font-black'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {spd === 1.0 ? '1x' : `${spd}x`}
+                </button>
+              ))}
+            </div>
+
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -283,18 +310,18 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
             </div>
           </div>
 
-          {/* Scene Navigation Bar */}
+          {/* Scene Navigation Bar with Visual Thumbnails */}
           <div className="w-full max-w-2xl mt-3 p-3 rounded-xl bg-[#0B132B] border border-slate-800">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-[#D4AF37]" />
-                Cenas Narrativas (5 Atos do Documentário)
+                Cenas Narrativas Contextuais (5 Atos do Documentário)
               </span>
               <span className="text-[10px] font-semibold text-slate-500">
-                Clique para saltar
+                Tema: <strong className="text-[#D4AF37]">{activeScene.imageTheme || 'Geral'}</strong> • Clique para saltar
               </span>
             </div>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-5 gap-2">
               {scenes.map((sc: SceneData, i: number) => {
                 const isActive = activeSceneIndex === i;
                 return (
@@ -302,23 +329,34 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
                     key={sc.sceneIndex}
                     type="button"
                     onClick={() => handleJumpToScene(i)}
-                    className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer ${
+                    className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
                       isActive
-                        ? 'border-[#D4AF37] bg-[#1C2541] text-white shadow'
+                        ? 'border-[#D4AF37] bg-[#1C2541] text-white shadow-lg ring-1 ring-[#D4AF37]'
                         : 'border-slate-800 bg-[#090D16] text-slate-400 hover:border-slate-700'
                     }`}
                   >
+                    {sc.imageUrl && (
+                      <div className="w-full h-10 mb-1 rounded overflow-hidden bg-black/40 relative">
+                        <img
+                          src={sc.imageUrl}
+                          alt={sc.headline}
+                          className="w-full h-full object-cover opacity-70 hover:opacity-100 transition-opacity"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                      </div>
+                    )}
                     <span className="text-[10px] font-black block text-[#D4AF37]">
                       ATO 0{sc.sceneIndex}
                     </span>
-                    <span className="text-[8px] block truncate">
+                    <span className="text-[8px] block truncate font-medium text-slate-300">
                       {sc.badge.split(' ')[0]}
                     </span>
                   </button>
                 );
               })}
             </div>
-            <p className="text-[11px] text-slate-300 mt-2 italic px-1 line-clamp-1">
+            <p className="text-[11px] text-slate-300 mt-2 italic px-1 line-clamp-1 border-t border-slate-800/80 pt-2">
               "{activeScene.spokenText}"
             </p>
           </div>
