@@ -32,8 +32,41 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Serve real generated media files with byte-range streaming support for HTML5 video
-app.use('/media', express.static(path.join(__dirname, 'public', 'media')));
+// Serve real generated media files with robust byte-range streaming support for HTML5 video
+app.use('/media', (req: Request, res: Response, next: any) => {
+  const relPath = req.path;
+  const filePath = path.join(__dirname, 'public', 'media', relPath);
+
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range && fileSize > 0) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      if (isNaN(start) || start >= fileSize || (parts[1] && end >= fileSize) || start > end) {
+        res.setHeader('Content-Range', `bytes */${fileSize}`);
+        return res.status(416).end();
+      }
+
+      const chunksize = end - start + 1;
+      const file = fs.createReadStream(filePath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'video/mp4',
+      };
+      res.writeHead(206, head);
+      return file.pipe(res);
+    }
+  }
+  next();
+}, express.static(path.join(__dirname, 'public', 'media')));
+
 app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 
 // Direct Real MP4 Video Download Endpoint
@@ -180,7 +213,7 @@ app.post('/api/render-custom', async (req: Request, res: Response) => {
       output_path: targetFile,
     };
 
-    await execFilePromise('python3', [scriptPath, JSON.stringify(config)]);
+    await execFilePromise('python3', [scriptPath, JSON.stringify(config)], { maxBuffer: 10 * 1024 * 1024 });
 
     const scenesPath = targetFile.replace('.mp4', '.scenes.json');
     let scenes = undefined;
@@ -250,7 +283,7 @@ app.post('/api/process', async (req: Request, res: Response) => {
         output_path: targetPath,
       };
 
-      await execFilePromise('python3', [scriptPath, JSON.stringify(config)]);
+      await execFilePromise('python3', [scriptPath, JSON.stringify(config)], { maxBuffer: 10 * 1024 * 1024 });
     } catch (e: any) {
       console.warn('Dynamic script render fallback:', e.message);
     }

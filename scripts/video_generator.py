@@ -748,13 +748,13 @@ def render_autonomous_video(config):
     for i in range(num_scenes):
         bg_in = i
         svg_in = num_scenes + i
-        # Zoompan: smooth slow zoom from 1.0 to 1.18x over the scene duration
+        # Zoompan: smooth slow zoom from 1.0 to 1.18x over the scene duration with unified SAR=1
         filter_parts.append(
-            f"[{bg_in}:v]scale=-1:1440,crop={width}:{height},zoompan=z='min(zoom+0.0016,1.20)':d={frames_per_scene}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={width}x{height}:fps={fps}[bgm{i}]"
+            f"[{bg_in}:v]scale={width}*2:{height}*2:force_original_aspect_ratio=increase,crop={width}*2:{height}*2,zoompan=z='min(zoom+0.0016,1.20)':d={frames_per_scene}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={width}x{height}:fps={fps},setsar=1[bgm{i}]"
         )
-        # Overlay the transparent HUD plate over the moving background
+        # Overlay the transparent HUD plate over the moving background with SAR=1
         filter_parts.append(
-            f"[bgm{i}][{svg_in}:v]overlay=0:0[scene{i}]"
+            f"[bgm{i}][{svg_in}:v]overlay=0:0,setsar=1[scene{i}]"
         )
         v_labels.append(f"[scene{i}]")
 
@@ -794,6 +794,9 @@ def render_autonomous_video(config):
     # Ambient audio generator input
     cmd.extend(['-f', 'lavfi', '-i', 'aevalsrc=0.03*sin(2*PI*110*t)+0.015*sin(2*PI*220*t):s=44100'])
 
+    # Render to a temporary file first then atomically replace to prevent 416 Range Not Satisfiable during writing
+    tmp_output_path = f"{output_path}.tmp.mp4"
+
     cmd.extend([
         '-filter_complex', full_filter_complex,
         '-map', '[outv]',
@@ -806,10 +809,17 @@ def render_autonomous_video(config):
         '-c:a', 'aac',
         '-b:a', '128k',
         '-t', str(int(total_duration)),
-        output_path
+        tmp_output_path
     ])
 
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    run_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if run_res.returncode != 0:
+        err_msg = run_res.stderr.decode('utf-8', errors='ignore')
+        print(f"FFmpeg error output: {err_msg[-1200:]}", file=sys.stderr)
+        raise subprocess.CalledProcessError(run_res.returncode, cmd, output=run_res.stdout, stderr=run_res.stderr)
+
+    if os.path.exists(tmp_output_path):
+        os.replace(tmp_output_path, output_path)
 
     # 6. Save accompanying scenes JSON metadata for UI and player
     json_path = output_path.replace('.mp4', '.scenes.json')
